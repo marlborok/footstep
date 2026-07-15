@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="足跡">
+<meta name="theme-color" content="#fff7e0">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' fill='%23eef4f2'/%3E%3Ctext y='132' x='26' font-size='120'%3E%F0%9F%8C%8F%3C/text%3E%3C/svg%3E">
+<title>footsteps。足跡</title>
+<style>
+  :root{--teal:#12a08c;--ink:#5b4a2c;--mut:#a9946a;--line:rgba(150,120,70,.16);
+    --grad:linear-gradient(120deg,#ffcf5a 0%,#f5a622 55%,#e2802a 100%);
+    --glass:rgba(255,253,246,.56);--glass2:rgba(255,253,246,.68);
+    --gshadow:0 12px 34px rgba(150,115,50,.18);--ghi:inset 0 1px 0 rgba(255,255,255,.85);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;min-height:100%;background:
+     radial-gradient(85% 65% at 10% 6%, #fff0c2 0%, transparent 55%),
+     radial-gradient(80% 60% at 94% 4%, #ffe7b4 0%, transparent 55%),
+     radial-gradient(95% 80% at 90% 98%, #f2e2ba 0%, transparent 58%),
+     radial-gradient(95% 80% at 4% 96%, #f8edcf 0%, transparent 58%),
+     linear-gradient(160deg,#fff9ea 0%,#f4e8c6 100%);
+    background-attachment:fixed;
+    color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+    -webkit-user-select:none;user-select:none;}
+  body{padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 100px);}
+  .glass{background:var(--glass);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.6);box-shadow:var(--gshadow),var(--ghi);}
+  /* header */
+  header{display:flex;flex-direction:column;gap:13px;
+    padding:15px 20px;border-radius:24px;margin-bottom:14px;}
+  .title{font-size:24px;display:flex;align-items:center;line-height:1;white-space:nowrap;}
+  .feet{height:25px;width:auto;margin-left:8px;display:block;}
+  .title .en{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700;letter-spacing:.03em;}
+  .title .sep{color:var(--mut);font-weight:400;margin:0 -1px;}
+  .title .cjk{color:var(--ink);font-weight:700;letter-spacing:.1em;}
+  .stats{display:flex;justify-content:space-between;gap:8px;text-align:left;}
+  .stat .n{font-size:24px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+  .stat .l{font-size:9px;color:var(--mut);letter-spacing:.1em;margin-top:5px;line-height:1.3;}
+  .stat .teal{color:#e08a2a;}
+  /* globe */
+  .globe-wrap{position:relative;width:100%;height:52vh;min-height:360px;display:flex;align-items:center;justify-content:center;}
+  .globe-wrap::before{content:"";position:absolute;width:min(96vw,480px);aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,184,90,.36) 0%,rgba(255,150,70,.16) 46%,transparent 70%);
+    filter:blur(10px);pointer-events:none;}
+  #globeViz{width:100%;height:100%;position:relative;}
+  #empty{position:absolute;text-align:center;color:var(--mut);font-size:14px;line-height:1.9;pointer-events:none;}
+  /* photo card */
+  #card{position:absolute;z-index:20;display:none;width:min(78vw,290px);
+    background:var(--glass2);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
+    border:1px solid rgba(255,255,255,.7);border-radius:24px;padding:12px;
+    box-shadow:0 18px 48px rgba(150,115,50,.28),var(--ghi);
+    animation:cardPop .3s cubic-bezier(.2,.8,.3,1.15);}
+  @keyframes cardPop{from{opacity:0;transform:scale(.9) translateY(10px);}to{opacity:1;}}
+  #card .top{display:flex;align-items:center;gap:6px;font-size:11px;color:#9c8a5f;letter-spacing:.06em;margin:0 2px 9px;}
+  #card .top .d{width:7px;height:7px;border-radius:50%;background:#f0a92e;flex:none;}
+  #card .top .rg{margin-left:auto;color:#e08a2a;font-weight:600;letter-spacing:.1em;}
+  #card img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:16px;display:block;background:#efe6d2;}
+  #card .row{display:flex;align-items:center;gap:9px;margin:11px 4px 3px;}
+  #card .flag{font-size:22px;line-height:1;}
+  #card .place{font-size:19px;font-weight:700;}
+  #card .date{font-size:12px;color:var(--mut);margin:1px 4px 2px;}
+  #card .x{position:absolute;top:-9px;right:-9px;width:28px;height:28px;border-radius:50%;
+    background:rgba(255,255,255,.9);color:#9c8a5f;border:1px solid rgba(255,255,255,.8);font-size:15px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(150,115,50,.25);}
+  /* regions panel */
+  .panel{border-radius:24px;padding:18px 18px 20px;margin-top:6px;margin-bottom:88px;
+    background:var(--glass);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);
+    border:1px solid rgba(255,255,255,.6);box-shadow:var(--gshadow),var(--ghi);}
+  .panel .ph{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);letter-spacing:.14em;margin-bottom:14px;}
+  .dist{display:flex;align-items:center;gap:20px;}
+  #donut{width:118px;height:118px;flex:none;position:relative;}
+  #donut svg{width:100%;height:100%;}
+  #donut .dt-num{font-size:26px;font-weight:800;fill:var(--ink);}
+  #donut .dt-lbl{font-size:9px;letter-spacing:.14em;fill:var(--mut);}
+  #legend{flex:1;display:flex;flex-direction:column;gap:9px;}
+  .lg{display:flex;align-items:center;font-size:14px;}
+  .lg .dot{width:10px;height:10px;border-radius:50%;margin-right:10px;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.5);}
+  .lg .rn{color:var(--ink);opacity:.82;}
+  .lg .cn{margin-left:auto;font-weight:700;color:var(--ink);}
+  /* pick button */
+  #pickWrap{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 18px);left:50%;transform:translateX(-50%);z-index:40;}
+  #pickBtn{display:inline-flex;align-items:center;gap:8px;background:var(--grad);color:#fff;
+    font-size:16px;font-weight:600;padding:14px 28px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.4);box-shadow:0 10px 28px rgba(255,111,156,.45),var(--ghi);
+    animation:glow 3.4s ease-in-out infinite;}
+  #pickBtn:active{transform:scale(.96);}
+  @keyframes glow{0%,100%{box-shadow:0 10px 26px rgba(255,140,110,.42),var(--ghi);}
+    50%{box-shadow:0 14px 34px rgba(155,108,255,.5),var(--ghi);}}
+  #file{display:none;}
+  #toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 82px);left:50%;transform:translateX(-50%);z-index:40;
+    background:rgba(58,53,80,.9);color:#fff;font-size:13px;padding:9px 18px;border-radius:999px;display:none;
+    backdrop-filter:blur(10px);box-shadow:0 8px 22px rgba(120,105,175,.3);}
+</style>
+<script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+<script src="https://unpkg.com/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
+<script src="https://unpkg.com/exifr@7.1.3/dist/full.umd.js"></script>
+</head>
+<body>
+<header class="glass">
+  <div class="title"><span class="en">footsteps</span><svg class="feet" viewBox="0 0 46 30" role="img" aria-label="足跡">
+    <defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcf5a"/><stop offset=".55" stop-color="#f5a622"/><stop offset="1" stop-color="#e2802a"/></linearGradient></defs>
+    <g fill="url(#fg)">
+      <ellipse cx="11" cy="20.5" rx="5.4" ry="7.6" transform="rotate(-11 11 20.5)"/>
+      <circle cx="5.4" cy="12.2" r="1.5"/><circle cx="8.7" cy="10.4" r="1.6"/><circle cx="12.1" cy="10.3" r="1.5"/><circle cx="15" cy="11.6" r="1.3"/>
+      <ellipse cx="31" cy="11.5" rx="5.4" ry="7.6" transform="rotate(11 31 11.5)"/>
+      <circle cx="36.6" cy="3.4" r="1.5"/><circle cx="33.3" cy="1.9" r="1.6"/><circle cx="29.9" cy="2" r="1.5"/><circle cx="27" cy="3.5" r="1.3"/>
+    </g>
+  </svg></div>
+  <div class="stats">
+    <div class="stat"><div class="n" id="sTrips">0</div><div class="l">FOOTPRINTS</div></div>
+    <div class="stat"><div class="n" id="sCountries">0</div><div class="l">COUNTRIES</div></div>
+    <div class="stat"><div class="n teal" id="sSince">–</div><div class="l" id="sSinceL">SINCE</div></div>
+  </div>
+</header>
+
+<div class="globe-wrap">
+  <div id="globeViz"></div>
+  <div id="empty">按下方「選照片」<br>從相簿挑帶定位的照片<br>就會標到地球上</div>
+  <div id="card">
+    <span class="x" id="cardX">✕</span>
+    <div class="top"><span class="d"></span><span id="cCoord"></span><span class="rg" id="cRegion"></span></div>
+    <img id="cImg">
+    <div class="row"><span class="flag" id="cFlag"></span><span class="place" id="cPlace"></span></div>
+    <div class="date" id="cDate"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="ph"><span>REGIONS</span><span>DISTRIBUTION</span></div>
+  <div class="dist"><div id="donut"></div><div id="legend"></div></div>
+</div>
+
+<div id="pickWrap"><label id="pickBtn" for="file">＋ 選照片</label><input id="file" type="file" accept="image/*" multiple></div>
+<div id="toast"></div>
+
+<script>
+// ---- 國碼 → 地區 ----
+const R_EAST=['JP','KR','KP','CN','TW','HK','MO','MN'],
+ R_SE=['TH','VN','PH','ID','MY','SG','KH','LA','MM','BN','TL'],
+ R_SOUTH=['IN','NP','LK','BD','PK','BT','MV','AF'],
+ R_WEST=['TR','IL','PS','JO','LB','SY','IQ','IR','SA','AE','QA','BH','KW','OM','YE','GE','AM','AZ','CY'],
+ R_CENTRAL=['KZ','UZ','TM','KG','TJ'],
+ R_EU=['GB','IE','FR','DE','ES','PT','IT','NL','BE','LU','CH','AT','DK','SE','NO','FI','IS','PL','CZ','SK','HU','RO','BG','GR','HR','SI','RS','BA','ME','MK','AL','EE','LV','LT','UA','BY','MD','RU','MT','MC','VA','LI','AD','SM','XK'],
+ R_AM=['US','CA','MX','GT','BZ','SV','HN','NI','CR','PA','CU','DO','JM','HT','BS','PR','TT','BB','CO','VE','EC','PE','BO','CL','AR','UY','PY','BR','GY','SR'],
+ R_OC=['AU','NZ','FJ','PG','NC','PF','WS','TO','VU','SB','GU','CK','KI','FM','PW','MH','NR','TV'],
+ R_AF=['EG','MA','TN','DZ','LY','ZA','KE','TZ','ET','NG','GH','SN','MU','SC','NA','BW','ZW','ZM','UG','RW','MZ','MG','CI','CM','GA','GM','BJ','TG','ML','BF','NE','SD','SS','SO','ER','DJ','LR','SL','GN','MW','LS','SZ','AO','CG','CD','CF','TD','MR','CV'];
+const REGION_MAP={};
+[['East Asia',R_EAST],['SE Asia',R_SE],['South Asia',R_SOUTH],['West Asia',R_WEST],['Central Asia',R_CENTRAL],
+ ['Europe',R_EU],['Americas',R_AM],['Oceania',R_OC],['Africa',R_AF]].forEach(([r,l])=>l.forEach(c=>REGION_MAP[c]=r));
+const REGION_COLORS={'East Asia':'#e0912a','SE Asia':'#f0b24a','South Asia':'#f6ce78','Europe':'#c98a3c',
+ 'West Asia':'#b5763a','Central Asia':'#d8a85a','Americas':'#a9843f','Africa':'#cf7f43','Oceania':'#cbb488','Other':'#d8c6a0'};
+const regionOf=cc=>REGION_MAP[cc]||'Other';
+const flagOf=cc=>cc&&cc.length===2?cc.toUpperCase().replace(/./g,c=>String.fromCodePoint(127397+c.charCodeAt())):'🏳️';
+
+// ---- IndexedDB ----
+const DB='travelAtlas',ST='pts';
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);
+ r.onupgradeneeded=()=>r.result.createObjectStore(ST);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbGet(k){const db=await idb();return new Promise(r=>{const t=db.transaction(ST).objectStore(ST).get(k);t.onsuccess=()=>r(t.result);t.onerror=()=>r(null);});}
+async function idbSet(k,v){const db=await idb();return new Promise(r=>{const t=db.transaction(ST,'readwrite').objectStore(ST).put(v,k);t.onsuccess=()=>r();t.onerror=()=>r();});}
+
+// ---- 狀態 ----
+let PTS=[];              // {lat,lon,place,country,cc,region,date,thumb,file}
+const geoCache={};
+function saveData(){return idbSet('data',PTS.map(p=>({lat:p.lat,lon:p.lon,place:p.place,country:p.country,cc:p.cc,region:p.region,date:p.date,thumb:p.thumb,file:p.file})));}
+
+// ---- 地球儀 ----
+const world=Globe()(document.getElementById('globeViz'))
+ .backgroundColor('rgba(0,0,0,0)')
+ .globeImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-day.jpg')
+ .bumpImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png')
+ .showAtmosphere(true).atmosphereColor('#ffb44f').atmosphereAltitude(0.36)
+ .pointLat('lat').pointLng('lon')
+ .pointAltitude(0.05).pointLabel(d=>d.place||'')
+ .pointsMerge(false)
+ .onPointHover(d=>{if(d)showCard(d);})
+ .onPointClick(d=>showCard(d));
+world.globeMaterial().bumpScale=8;
+// 提亮：用 emissiveMap 自發光，消除過暗的夜面，讓地球明亮貼近整體粉彩調性
+(function lift(){const gm=world.globeMaterial();
+  if(gm.map){gm.emissiveMap=gm.map;gm.emissive=new THREE.Color(0xffe6d2);gm.emissiveIntensity=.48;gm.needsUpdate=true;}
+  else setTimeout(lift,120);})();
+// 柔和光照：大部分受光、些微方向光做出球體立體感
+world.lights([new THREE.AmbientLight(0xffffff,1.3),
+  (()=>{const d=new THREE.DirectionalLight(0xffffff,.3);d.position.set(1,.4,1);return d;})()]);
+
+// 地球改用實拍藍色彈珠貼圖，不再需要水彩產生器
+// 呼吸光暈環（同步呼吸燈的亮色）
+world.ringsData([]).ringColor(()=> t=>`rgba(255,205,110,${1-t})`)
+ .ringMaxRadius(2.4).ringPropagationSpeed(1.3).ringRepeatPeriod(1500)
+ .ringLat('lat').ringLng('lon');
+// 亮點以呼吸燈方式明暗閃爍（亮青綠系）
+let _bl=0;
+function breathe(ts){requestAnimationFrame(breathe);if(ts-_bl<60)return;_bl=ts;
+  const t=(Math.sin(ts/700)+1)/2;
+  world.pointColor(()=>`rgba(255,222,140,${(0.5+0.5*t).toFixed(2)})`);
+  world.pointRadius(()=> +(0.4+0.34*t).toFixed(2));}
+requestAnimationFrame(breathe);
+world.controls().autoRotate=true;world.controls().autoRotateSpeed=0.4;
+function sizeGlobe(){const el=document.getElementById('globeViz');world.width(el.clientWidth).height(el.clientHeight);}
+sizeGlobe();addEventListener('resize',sizeGlobe);
+
+function refresh(){
+  world.pointsData(PTS.slice());
+  world.ringsData(PTS.slice());
+  document.getElementById('empty').style.display=PTS.length?'none':'block';
+  renderStats();renderDonut();
+}
+function renderStats(){
+  document.getElementById('sTrips').textContent=PTS.length;
+  document.getElementById('sCountries').textContent=new Set(PTS.map(p=>p.cc).filter(Boolean)).size;
+  const ys=PTS.map(p=>p.date&&+p.date.slice(0,4)).filter(Boolean);
+  const el=document.getElementById('sSince');
+  if(ys.length){const m=Math.min(...ys);el.textContent=(new Date().getFullYear()-m+1);document.getElementById('sSinceL').innerHTML='YEARS<br>SINCE '+m;}
+  else{el.textContent='–';document.getElementById('sSinceL').textContent='SINCE';}
+}
+function renderDonut(){
+  const c={};PTS.forEach(p=>{const r=p.region||'Other';c[r]=(c[r]||0)+1;});
+  const ent=Object.entries(c).sort((a,b)=>b[1]-a[1]);const total=PTS.length||1;
+  const C=2*Math.PI*52;let off=0,ring='';
+  ent.forEach(([r,n])=>{const len=n/total*C;
+    ring+=`<circle cx="60" cy="60" r="52" fill="none" stroke="${REGION_COLORS[r]||'#c6cfcc'}" stroke-width="15" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 60 60)" stroke-linecap="butt"/>`;off+=len;});
+  document.getElementById('donut').innerHTML=`<svg viewBox="0 0 120 120">${ring}<text x="60" y="58" text-anchor="middle" class="dt-num">${PTS.length}</text><text x="60" y="74" text-anchor="middle" class="dt-lbl">FOOTPRINTS</text></svg>`;
+  document.getElementById('legend').innerHTML=ent.length?ent.map(([r,n])=>`<div class="lg"><span class="dot" style="background:${REGION_COLORS[r]||'#c6cfcc'}"></span><span class="rn">${r}</span><span class="cn">${n}</span></div>`).join(''):`<div class="lg"><span class="rn" style="color:var(--mut)">尚無資料</span></div>`;
+}
+
+// ---- 讀照片 ----
+const toast=document.getElementById('toast');
+const showToast=t=>{toast.textContent=t;toast.style.display='block';};
+const hideToast=()=>toast.style.display='none';
+document.getElementById('file').addEventListener('change',async e=>{
+  const files=[...e.target.files];e.target.value='';if(!files.length)return;
+  let added=0,noGps=0;
+  for(let i=0;i<files.length;i++){
+    showToast(`讀取中 ${i+1}/${files.length}…（已加 ${added}）`);
+    const f=files[i];let gps=null,date='';
+    try{gps=await exifr.gps(f);}catch(_){}
+    if(!gps||gps.latitude==null){noGps++;continue;}
+    try{const m=await exifr.parse(f,['DateTimeOriginal','CreateDate','DateTime']);
+      const dt=m&&(m.DateTimeOriginal||m.CreateDate||m.DateTime);if(dt)date=new Date(dt).toISOString().slice(0,10);}catch(_){}
+    if(!date&&f.lastModified)date=new Date(f.lastModified).toISOString().slice(0,10);
+    let thumb='';try{thumb=await makeThumb(f);}catch(_){}
+    const p={lat:gps.latitude,lon:gps.longitude,place:'',country:'',cc:'',region:'',date,thumb,file:f.name};
+    PTS.push(p);added++;refresh();enqueueGeo(p);
+  }
+  PTS.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  refresh();await saveData();
+  showToast(`完成：新增 ${added}，${noGps} 張無定位`);setTimeout(hideToast,2600);
+  if(added&&PTS.length===added)world.pointOfView({lat:PTS[0].lat,lng:PTS[0].lon,altitude:2.3},1400);
+});
+function makeThumb(file){return new Promise((res,rej)=>{
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{const S=320,c=document.createElement('canvas');
+    const ar=img.width/img.height;let w=S,h=Math.round(S/ar);if(h<S*0.62){h=Math.round(S*0.62);}
+    c.width=S;c.height=Math.round(S*0.62);
+    const scale=Math.max(c.width/img.width,c.height/img.height);
+    const dw=img.width*scale,dh=img.height*scale;
+    c.getContext('2d').drawImage(img,(c.width-dw)/2,(c.height-dh)/2,dw,dh);
+    URL.revokeObjectURL(url);try{res(c.toDataURL('image/jpeg',0.74));}catch(e){rej(e);}};
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('decode'));};img.src=url;});}
+
+// ---- 地名反查佇列 ----
+const geoQ=[];let geoBusy=false;
+function enqueueGeo(p){if(!p.cc){geoQ.push(p);pumpGeo();}}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function pumpGeo(){if(geoBusy)return;geoBusy=true;
+  while(geoQ.length){const p=geoQ.shift();const key=p.lat.toFixed(3)+','+p.lon.toFixed(3);
+    let g=geoCache[key];
+    if(!g){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${p.lat}&lon=${p.lon}&format=json&zoom=10&accept-language=zh-TW`);
+        const j=await r.json();const a=j.address||{};
+        g={city:a.city||a.town||a.village||a.county||a.state||'',country:a.country||'',cc:(a.country_code||'').toUpperCase()};
+        geoCache[key]=g;}catch(_){g=null;}await sleep(1100);}
+    if(g){p.place=g.city;p.country=g.country;p.cc=g.cc;p.region=regionOf(g.cc);
+      renderStats();renderDonut();world.pointsData(PTS.slice());
+      if(CARD_PT===p)fillCard(p);}
+  }
+  geoBusy=false;saveData();
+}
+
+// ---- 卡片 ----
+const card=document.getElementById('card');let CARD_PT=null;
+document.getElementById('cardX').onclick=()=>{card.style.display='none';CARD_PT=null;};
+function fillCard(d){
+  document.getElementById('cImg').src=d.thumb||'';
+  document.getElementById('cCoord').textContent=`${d.lat.toFixed(2)}°, ${d.lon.toFixed(2)}°`;
+  document.getElementById('cRegion').textContent=(d.region&&d.region!=='Other'?d.region:'').toUpperCase();
+  document.getElementById('cFlag').textContent=flagOf(d.cc);
+  document.getElementById('cPlace').textContent=d.place||'定位中…';
+  document.getElementById('cDate').textContent=d.date?d.date.slice(0,7).replace('-','.'):'';
+}
+function showCard(d){CARD_PT=d;fillCard(d);card.style.display='block';
+  const wrap=document.querySelector('.globe-wrap');
+  card.style.left=(wrap.clientWidth-card.offsetWidth)/2+'px';
+  card.style.top=(wrap.clientHeight-card.offsetHeight)/2+'px';
+  if(!d.cc)enqueueGeo(d);
+}
+
+// ---- 啟動 ----
+(async()=>{const s=await idbGet('data');
+  if(Array.isArray(s)&&s.length){PTS=s;refresh();world.pointOfView({lat:PTS[0].lat,lng:PTS[0].lon,altitude:2.3},0);
+    PTS.forEach(p=>{if(!p.cc)enqueueGeo(p);});}
+  else refresh();})();
+</script>
+</body>
+</html>
