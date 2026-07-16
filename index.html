@@ -215,8 +215,17 @@ setInterval(()=>{
   world.pointColor(()=>`rgba(255,77,157,${(0.5+0.28*t).toFixed(2)})`);
   world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));
   world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));
+  // 放大看細節時停止自轉（圖磚才來得及載入、也不會被帶走視角）；拉遠回全球視野才恢復
+  world.controls().autoRotate = a>TILE_ALT_ON;
   updateTiles();
 },80);
+// 雙保險：縮放/拖曳手勢的每一刻即時更新（手機上 setInterval 可能在手勢期間被節流）
+let _chg=0;
+world.controls().addEventListener('change',()=>{
+  applyPointScale();
+  const n=performance.now();
+  if(n-_chg>150){_chg=n;updateTiles();}
+});
 
 // ---- 圖磚 LOD：放大時只載入視野內、對應縮放層級的高解析度衛星圖磚 ----
 const TILE_URL=(x,y,z)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
