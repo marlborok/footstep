@@ -50,6 +50,8 @@
     filter:blur(10px);pointer-events:none;}
   #globeViz{width:100%;height:100%;position:relative;}
   #empty{position:absolute;text-align:center;color:var(--mut);font-size:14px;line-height:1.9;pointer-events:none;}
+  #attrib{position:absolute;bottom:4px;right:8px;font-size:8.5px;color:var(--mut);opacity:.75;
+    letter-spacing:.02em;pointer-events:none;display:none;}
   /* photo card */
   #card{position:absolute;z-index:20;display:none;width:min(78vw,290px);
     background:var(--glass2);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
@@ -122,6 +124,7 @@
 <div class="globe-wrap">
   <div id="globeViz"></div>
   <div id="empty">按下方「選照片」<br>從相簿挑帶定位的照片<br>就會標到地球上</div>
+  <div id="attrib">Imagery © Esri, Maxar, Earthstar Geographics</div>
   <div id="card">
     <span class="x" id="cardX">✕</span>
     <div class="top"><span class="d"></span><span id="cCoord"></span><span class="rg" id="cRegion"></span></div>
@@ -177,7 +180,7 @@ const world=Globe()(document.getElementById('globeViz'))
  .bumpImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png')
  .showAtmosphere(true).atmosphereColor('#ffb44f').atmosphereAltitude(0.36)
  .pointLat('lat').pointLng('lon')
- .pointColor(()=> 'rgba(255,46,99,0.95)').pointRadius(0.62)
+ .pointColor(()=> 'rgba(255,77,157,0.95)').pointRadius(0.62)
  .pointAltitude(0.05).pointLabel(d=>d.place||'')
  .pointsMerge(false)
  .onPointHover(d=>{if(d)showCard(d);})
@@ -197,13 +200,73 @@ world.ringsData([]).ringColor(()=> t=>`rgba(255,255,255,${(1-t)*0.9})`)
  .ringMaxRadius(2.8).ringPropagationSpeed(1.3).ringRepeatPeriod(1400)
  .ringLat('lat').ringLng('lon');
 // 亮點以呼吸燈方式明暗閃爍（亮青綠系）
+// 光點隨鏡頭距離等比縮放：維持固定螢幕大小、拉近時貼合地表（但仍高於圖磚，不被蓋住）
+function pointBaseRadius(){const a=world.pointOfView().altitude;return Math.max(0.0008,Math.min(0.7,a*0.28));}
+function applyPointScale(){const a=world.pointOfView().altitude;
+  world.pointRadius(pointBaseRadius());
+  world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));}
 let _bl=0;
 function breathe(ts){requestAnimationFrame(breathe);if(ts-_bl<60)return;_bl=ts;
-  const t=(Math.sin(ts/700)+1)/2;
-  world.pointColor(()=>`rgba(255,46,99,${(0.62+0.38*t).toFixed(2)})`);
-  world.pointRadius(()=> +(0.5+0.36*t).toFixed(2));}
+  const t=(Math.sin(ts/700)+1)/2, base=pointBaseRadius();
+  world.pointColor(()=>`rgba(255,77,157,${(0.62+0.38*t).toFixed(2)})`);
+  world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));}
 requestAnimationFrame(breathe);
+
+// ---- 圖磚 LOD：放大時只載入視野內、對應縮放層級的高解析度衛星圖磚 ----
+const TILE_URL=(x,y,z)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const TILE_ALT_ON=0.7, TILE_Z_MIN=3, TILE_Z_MAX=17, TILE_MAX=36;
+const tileMatCache=new Map();
+const texLoader=new THREE.TextureLoader();texLoader.setCrossOrigin('anonymous');
+const n2=z=>Math.pow(2,z);
+const lon2tile=(lon,z)=>Math.floor((lon+180)/360*n2(z));
+const lat2tile=(lat,z)=>{const r=lat*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n2(z));};
+const tile2lon=(x,z)=>x/n2(z)*360-180;
+const tile2lat=(y,z)=>{const t=Math.PI-2*Math.PI*y/n2(z);return 180/Math.PI*Math.atan(0.5*(Math.exp(t)-Math.exp(-t)));};
+function tileMat(x,y,z){
+  const key=z+'/'+x+'/'+y;let m=tileMatCache.get(key);if(m)return m;
+  m=new THREE.MeshPhongMaterial({color:0xffffff,emissive:new THREE.Color(0xffe6d2),emissiveIntensity:.45});
+  texLoader.load(TILE_URL(x,y,z),
+    t=>{t.colorSpace=THREE.SRGBColorSpace;m.map=t;m.emissiveMap=t;m.needsUpdate=true;},
+    undefined,
+    ()=>{m.transparent=true;m.opacity=0;m.needsUpdate=true;});
+  tileMatCache.set(key,m);
+  if(tileMatCache.size>240){const k=tileMatCache.keys().next().value,o=tileMatCache.get(k);
+    if(o.map)o.map.dispose();o.dispose();tileMatCache.delete(k);}
+  return m;
+}
+world.tileLat('lat').tileLng('lng').tileWidth('w').tileHeight('h')
+ .tileAltitude(0.0009).tileCurvatureResolution(5)
+ .tileMaterial(d=>tileMat(d.x,d.y,d.z));
+function updateTiles(){
+  const pov=world.pointOfView(),alt=pov.altitude,att=document.getElementById('attrib');
+  if(alt>TILE_ALT_ON){if(world.tilesData().length)world.tilesData([]);if(att)att.style.display='none';return;}
+  // 視野跨距：取「相機 FOV 實際看到的地表弧長」與「地平線可視角」較小者
+  const cam=world.camera();
+  const fovSpan=2*alt*Math.tan(cam.fov*Math.PI/360)*180/Math.PI;
+  const horizonSpan=2*Math.acos(Math.min(1,1/(1+alt)))*180/Math.PI;
+  const span=Math.max(0.02,Math.min(fovSpan,horizonSpan));
+  let z=Math.round(Math.log2(360*4/span));
+  z=Math.max(TILE_Z_MIN,Math.min(TILE_Z_MAX,z));
+  const n=n2(z);
+  const latPad=span*0.6,lonPad=span*0.6/Math.max(0.15,Math.cos(pov.lat*Math.PI/180));
+  const latMax=Math.min(85,pov.lat+latPad),latMin=Math.max(-85,pov.lat-latPad);
+  const x0=lon2tile(pov.lng-lonPad,z),x1=lon2tile(pov.lng+lonPad,z);
+  const y0=Math.max(0,lat2tile(latMax,z)),y1=Math.min(n-1,lat2tile(latMin,z));
+  const tiles=[];
+  for(let y=y0;y<=y1&&tiles.length<TILE_MAX;y++)
+    for(let xi=x0;xi<=x1&&tiles.length<TILE_MAX;xi++){
+      const x=((xi%n)+n)%n;
+      const north=tile2lat(y,z),south=tile2lat(y+1,z),west=tile2lon(x,z),east=tile2lon(x+1,z);
+      tiles.push({x,y,z,lat:(north+south)/2,lng:(west+east)/2,w:east-west,h:north-south});
+    }
+  world.tilesData(tiles);
+  if(att)att.style.display='block';
+}
+world.onZoom(()=>{updateTiles();applyPointScale();});
+updateTiles();applyPointScale();
+
 world.controls().autoRotate=true;world.controls().autoRotateSpeed=0.4;
+world.controls().minDistance=100.35;   // 放行更深的縮放（原本 101），圖磚才能到 z13
 function sizeGlobe(){const el=document.getElementById('globeViz');world.width(el.clientWidth).height(el.clientHeight);}
 sizeGlobe();addEventListener('resize',sizeGlobe);
 
