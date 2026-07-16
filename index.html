@@ -10,6 +10,9 @@
 <meta name="theme-color" content="#fff7e0">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' fill='%23eef4f2'/%3E%3Ctext y='132' x='26' font-size='120'%3E%F0%9F%8C%8F%3C/text%3E%3C/svg%3E">
 <title>footsteps。足跡</title>
+<!-- 地球貼圖 earth-8k.jpg：© Solar System Scope (solarsystemscope.com/textures)，授權 CC BY 4.0，已調整亮度。 -->
+<meta name="credits" content="Earth texture © Solar System Scope, CC BY 4.0">
+<link rel="preload" as="image" href="./earth-8k.jpg">
 <style>
   :root{--teal:#12a08c;--ink:#5b4a2c;--mut:#a9946a;--line:rgba(150,120,70,.16);
     --grad:linear-gradient(120deg,#ffcf5a 0%,#f5a622 55%,#e2802a 100%);
@@ -170,7 +173,7 @@ function saveData(){return idbSet('data',PTS.map(p=>({lat:p.lat,lon:p.lon,place:
 // ---- 地球儀 ----
 const world=Globe()(document.getElementById('globeViz'))
  .backgroundColor('rgba(0,0,0,0)')
- .globeImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-day.jpg')
+ .globeImageUrl('./earth-8k.jpg')
  .bumpImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png')
  .showAtmosphere(true).atmosphereColor('#ffb44f').atmosphereAltitude(0.36)
  .pointLat('lat').pointLng('lon')
