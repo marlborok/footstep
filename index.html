@@ -40,8 +40,6 @@
   .title{font-size:20px;display:flex;align-items:center;line-height:1;white-space:nowrap;}
   .title .en{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700;letter-spacing:.03em;}
   .feet{height:21px;width:auto;margin-left:7px;display:block;}
-  #attrib{position:fixed;z-index:20;top:calc(env(safe-area-inset-top) + 22px);right:14px;
-    font-size:8.5px;color:var(--mut);opacity:.85;letter-spacing:.02em;pointer-events:none;display:none;}
   #empty{position:fixed;z-index:5;left:0;right:0;top:34%;text-align:center;color:#8a7548;font-size:14px;
     line-height:1.9;pointer-events:none;text-shadow:0 1px 8px rgba(255,250,235,.95);}
   /* z40 浮動照片卡 */
@@ -129,7 +127,6 @@
 </div>
 
 <div id="empty">按右下「＋」選照片<br>從相簿挑帶定位的照片<br>就會標到地球上</div>
-<div id="attrib">Imagery © Esri, Maxar, Earthstar Geographics</div>
 
 <div id="card">
   <span class="x" id="cardX">✕</span>
@@ -243,80 +240,16 @@ setInterval(()=>{
   world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));
   // 把每個點的材質換成霓虹漸層（點物件重建後也會在下一拍補上）
   world.pointsData().forEach(d=>{const o=d.__threeObj;if(o&&o.material!==neonMat)o.material=neonMat;});
-  // 放大看細節時停止自轉（圖磚才來得及載入、也不會被帶走視角）；拉遠回全球視野才恢復
-  world.controls().autoRotate = a>TILE_ALT_ON;
-  updateTiles();
+  // 放大看細節時停止自轉（視角不被帶走）；拉遠回全球視野才恢復
+  world.controls().autoRotate = a>0.7;
 },80);
 // 雙保險：縮放/拖曳手勢的每一刻即時更新（手機上 setInterval 可能在手勢期間被節流）
-let _chg=0;
-world.controls().addEventListener('change',()=>{
-  applyPointScale();
-  const n=performance.now();
-  if(n-_chg>150){_chg=n;updateTiles();}
-});
+world.controls().addEventListener('change',applyPointScale);
 
-// ---- 圖磚 LOD：放大時只載入視野內、對應縮放層級的高解析度衛星圖磚 ----
-const TILE_URL=(x,y,z)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
-const TILE_ALT_ON=0.7, TILE_Z_MIN=3, TILE_Z_MAX=17, TILE_MAX=36;
-const tileMatCache=new Map();
-const texLoader=new THREE.TextureLoader();texLoader.setCrossOrigin('anonymous');
-const n2=z=>Math.pow(2,z);
-const lon2tile=(lon,z)=>Math.floor((lon+180)/360*n2(z));
-const lat2tile=(lat,z)=>{const r=lat*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n2(z));};
-const tile2lon=(x,z)=>x/n2(z)*360-180;
-const tile2lat=(y,z)=>{const t=Math.PI-2*Math.PI*y/n2(z);return 180/Math.PI*Math.atan(0.5*(Math.exp(t)-Math.exp(-t)));};
-function tileMat(x,y,z){
-  const key=z+'/'+x+'/'+y;let m=tileMatCache.get(key);if(m)return m;
-  m=new THREE.MeshPhongMaterial({color:0xffffff,emissive:new THREE.Color(0xffe6d2),emissiveIntensity:.45});
-  texLoader.load(TILE_URL(x,y,z),
-    t=>{t.colorSpace=THREE.SRGBColorSpace;m.map=t;m.emissiveMap=t;m.needsUpdate=true;},
-    undefined,
-    ()=>{m.transparent=true;m.opacity=0;m.needsUpdate=true;});
-  tileMatCache.set(key,m);
-  if(tileMatCache.size>240){const k=tileMatCache.keys().next().value,o=tileMatCache.get(k);
-    if(o.map)o.map.dispose();o.dispose();tileMatCache.delete(k);}
-  return m;
-}
-world.tileLat('lat').tileLng('lng').tileWidth('w').tileHeight('h')
- .tileAltitude(0.0009).tileCurvatureResolution(5)
- .tileMaterial(d=>tileMat(d.x,d.y,d.z));
-let _tileKey='';
-function updateTiles(){
-  const pov=world.pointOfView(),alt=pov.altitude,att=document.getElementById('attrib');
-  if(alt>TILE_ALT_ON){
-    if(_tileKey!==''){_tileKey='';world.tilesData([]);}
-    if(att)att.style.display='none';return;}
-  // 視野跨距：取「相機 FOV 實際看到的地表弧長」與「地平線可視角」較小者
-  const cam=world.camera();
-  const fovSpan=2*alt*Math.tan(cam.fov*Math.PI/360)*180/Math.PI;
-  const horizonSpan=2*Math.acos(Math.min(1,1/(1+alt)))*180/Math.PI;
-  const span=Math.max(0.02,Math.min(fovSpan,horizonSpan));
-  let z=Math.round(Math.log2(360*4/span));
-  z=Math.max(TILE_Z_MIN,Math.min(TILE_Z_MAX,z));
-  const n=n2(z);
-  const latPad=span*0.6,lonPad=span*0.6/Math.max(0.15,Math.cos(pov.lat*Math.PI/180));
-  const latMax=Math.min(85,pov.lat+latPad),latMin=Math.max(-85,pov.lat-latPad);
-  const x0=lon2tile(pov.lng-lonPad,z),x1=lon2tile(pov.lng+lonPad,z);
-  const y0=Math.max(0,lat2tile(latMax,z)),y1=Math.min(n-1,lat2tile(latMin,z));
-  const tiles=[];
-  for(let y=y0;y<=y1&&tiles.length<TILE_MAX;y++)
-    for(let xi=x0;xi<=x1&&tiles.length<TILE_MAX;xi++){
-      const x=((xi%n)+n)%n;
-      const north=tile2lat(y,z),south=tile2lat(y+1,z),west=tile2lon(x,z),east=tile2lon(x+1,z);
-      // 略微放大 0.6% 讓相鄰磚重疊，消除磚縫透出底圖的格線
-      tiles.push({x,y,z,lat:(north+south)/2,lng:(west+east)/2,
-        w:(east-west)*1.006,h:(north-south)*1.006});
-    }
-  // 只有磚組真的改變時才重建，避免每次呼叫都重繪（自轉時才不會一直閃爍/重載）
-  const key=z+':'+tiles.map(d=>d.x+','+d.y).join('|');
-  if(key!==_tileKey){_tileKey=key;world.tilesData(tiles);}
-  if(att)att.style.display='block';
-}
-world.onZoom(()=>{updateTiles();applyPointScale();});
-updateTiles();applyPointScale();
+world.onZoom(applyPointScale);
+applyPointScale();
 
 world.controls().autoRotate=true;world.controls().autoRotateSpeed=0.4;
-world.controls().minDistance=100.35;   // 放行更深的縮放（原本 101），圖磚才能到 z13
 function sizeGlobe(){const el=document.getElementById('globeViz');world.width(el.clientWidth).height(el.clientHeight);}
 sizeGlobe();addEventListener('resize',sizeGlobe);
 
