@@ -14,47 +14,39 @@
 <meta name="credits" content="Earth texture © Solar System Scope, CC BY 4.0">
 <link rel="preload" as="image" href="./earth-8k.jpg">
 <style>
-  :root{--teal:#12a08c;--ink:#5b4a2c;--mut:#a9946a;--line:rgba(150,120,70,.16);
+  :root{--ink:#5b4a2c;--mut:#a9946a;--line:rgba(150,120,70,.16);
     --grad:linear-gradient(120deg,#ffcf5a 0%,#f5a622 55%,#e2802a 100%);
-    --glass:rgba(255,253,246,.56);--glass2:rgba(255,253,246,.68);
-    --gshadow:0 12px 34px rgba(150,115,50,.18);--ghi:inset 0 1px 0 rgba(255,255,255,.85);}
+    --glass:rgba(255,252,242,.68);--glass2:rgba(255,252,242,.8);
+    --gshadow:0 12px 34px rgba(150,115,50,.16);--ghi:inset 0 1px 0 rgba(255,255,255,.85);}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;min-height:100%;background:
-     radial-gradient(85% 65% at 10% 6%, #fff0c2 0%, transparent 55%),
-     radial-gradient(80% 60% at 94% 4%, #ffe7b4 0%, transparent 55%),
-     radial-gradient(95% 80% at 90% 98%, #f2e2ba 0%, transparent 58%),
-     radial-gradient(95% 80% at 4% 96%, #f8edcf 0%, transparent 58%),
-     linear-gradient(160deg,#fff9ea 0%,#f4e8c6 100%);
-    background-attachment:fixed;
+  html,body{margin:0;height:100%;overflow:hidden;background:
+     radial-gradient(80% 60% at 12% 4%, #fff3cd 0%, transparent 55%),
+     radial-gradient(90% 75% at 88% 96%, #f6e8c6 0%, transparent 58%),
+     linear-gradient(165deg,#fffaee 0%,#f7eed6 100%);
     color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
     -webkit-user-select:none;user-select:none;}
-  body{padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 100px);}
-  .glass{background:var(--glass);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);
-    border:1px solid rgba(255,255,255,.6);box-shadow:var(--gshadow),var(--ghi);}
-  /* header */
-  header{display:flex;flex-direction:column;gap:13px;
-    padding:15px 20px;border-radius:24px;margin-bottom:14px;}
-  .title{font-size:24px;display:flex;align-items:center;line-height:1;white-space:nowrap;}
-  .feet{height:25px;width:auto;margin-left:8px;display:block;}
+  /* z0 地球後方光暈 */
+  #halo{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:0;
+    width:min(110vw,600px);aspect-ratio:1;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(255,190,100,.22) 0%,rgba(255,165,85,.08) 48%,transparent 72%);
+    filter:blur(14px);}
+  /* z1 全螢幕地球畫布 */
+  #globeViz{position:fixed;inset:0;z-index:1;}
+  .glass{background:var(--glass);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.65);box-shadow:var(--gshadow),var(--ghi);}
+  /* z20 頂部浮動品牌膠囊 */
+  .topbar{position:fixed;z-index:20;top:calc(env(safe-area-inset-top) + 12px);left:14px;
+    display:flex;align-items:center;padding:9px 16px;border-radius:999px;}
+  .title{font-size:20px;display:flex;align-items:center;line-height:1;white-space:nowrap;}
   .title .en{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700;letter-spacing:.03em;}
-  .title .sep{color:var(--mut);font-weight:400;margin:0 -1px;}
-  .title .cjk{color:var(--ink);font-weight:700;letter-spacing:.1em;}
-  .stats{display:flex;justify-content:space-between;gap:8px;text-align:left;}
-  .stat .n{font-size:24px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-  .stat .l{font-size:9px;color:var(--mut);letter-spacing:.1em;margin-top:5px;line-height:1.3;}
-  .stat .teal{color:#e08a2a;}
-  /* globe */
-  .globe-wrap{position:relative;width:100%;height:52vh;min-height:360px;display:flex;align-items:center;justify-content:center;}
-  .globe-wrap::before{content:"";position:absolute;width:min(96vw,480px);aspect-ratio:1;border-radius:50%;
-    background:radial-gradient(circle,rgba(255,184,90,.36) 0%,rgba(255,150,70,.16) 46%,transparent 70%);
-    filter:blur(10px);pointer-events:none;}
-  #globeViz{width:100%;height:100%;position:relative;}
-  #empty{position:absolute;text-align:center;color:var(--mut);font-size:14px;line-height:1.9;pointer-events:none;}
-  #attrib{position:absolute;bottom:4px;right:8px;font-size:8.5px;color:var(--mut);opacity:.75;
-    letter-spacing:.02em;pointer-events:none;display:none;}
-  /* photo card */
-  #card{position:absolute;z-index:20;display:none;width:min(78vw,290px);
-    background:var(--glass2);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
+  .feet{height:21px;width:auto;margin-left:7px;display:block;}
+  #attrib{position:fixed;z-index:20;top:calc(env(safe-area-inset-top) + 22px);right:14px;
+    font-size:8.5px;color:var(--mut);opacity:.85;letter-spacing:.02em;pointer-events:none;display:none;}
+  #empty{position:fixed;z-index:5;left:0;right:0;top:34%;text-align:center;color:#8a7548;font-size:14px;
+    line-height:1.9;pointer-events:none;text-shadow:0 1px 8px rgba(255,250,235,.95);}
+  /* z40 浮動照片卡 */
+  #card{position:fixed;z-index:40;display:none;width:min(78vw,290px);
+    background:var(--glass2);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);
     border:1px solid rgba(255,255,255,.7);border-radius:24px;padding:12px;
     box-shadow:0 18px 48px rgba(150,115,50,.28),var(--ghi);
     animation:cardPop .3s cubic-bezier(.2,.8,.3,1.15);}
@@ -70,41 +62,59 @@
   #card .x{position:absolute;top:-9px;right:-9px;width:28px;height:28px;border-radius:50%;
     background:rgba(255,255,255,.9);color:#9c8a5f;border:1px solid rgba(255,255,255,.8);font-size:15px;
     display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(150,115,50,.25);}
-  /* regions panel */
-  .panel{border-radius:24px;padding:18px 18px 20px;margin-top:6px;margin-bottom:88px;
-    background:var(--glass);backdrop-filter:blur(20px) saturate(1.5);-webkit-backdrop-filter:blur(20px) saturate(1.5);
-    border:1px solid rgba(255,255,255,.6);box-shadow:var(--gshadow),var(--ghi);}
-  .panel .ph{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);letter-spacing:.14em;margin-bottom:14px;}
-  .dist{display:flex;align-items:center;gap:20px;}
-  #donut{width:118px;height:118px;flex:none;position:relative;}
+  /* z30 底部浮動資訊窗格（可收合） */
+  .sheet{position:fixed;z-index:30;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 12px);
+    border-radius:22px;padding:8px 14px 12px;}
+  #sheetToggle{display:block;width:100%;height:16px;border:0;background:transparent;padding:0;cursor:pointer;}
+  #sheetToggle::before{content:"";display:block;width:36px;height:4px;border-radius:2px;
+    background:rgba(150,120,70,.3);margin:4px auto;}
+  .sheet-body{margin-top:6px;}
+  .sheet.collapsed .sheet-body{display:none;}
+  .dist{display:flex;align-items:center;gap:14px;}
+  #donut{width:84px;height:84px;flex:none;}
   #donut svg{width:100%;height:100%;}
-  #donut .dt-num{font-size:26px;font-weight:800;fill:var(--ink);}
-  #donut .dt-lbl{font-size:9px;letter-spacing:.14em;fill:var(--mut);}
-  #legend{flex:1;display:flex;flex-direction:column;gap:9px;}
-  .lg{display:flex;align-items:center;font-size:14px;}
-  .lg .dot{width:10px;height:10px;border-radius:50%;margin-right:10px;flex:none;box-shadow:0 0 0 3px rgba(255,255,255,.5);}
+  #donut .dt-num{font-size:30px;font-weight:800;fill:var(--ink);}
+  #donut .dt-lbl{font-size:10px;letter-spacing:.12em;fill:var(--mut);}
+  .side{flex:1;min-width:0;}
+  #legend{display:flex;flex-direction:column;gap:5px;}
+  .lg{display:flex;align-items:center;font-size:12.5px;}
+  .lg .dot{width:8px;height:8px;border-radius:50%;margin-right:8px;flex:none;box-shadow:0 0 0 2px rgba(255,255,255,.55);}
   .lg .rn{color:var(--ink);opacity:.82;}
   .lg .cn{margin-left:auto;font-weight:700;color:var(--ink);}
-  /* pick button */
-  #pickWrap{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 18px);left:50%;transform:translateX(-50%);z-index:40;}
-  #pickBtn{display:inline-flex;align-items:center;gap:8px;background:var(--grad);color:#fff;
-    font-size:16px;font-weight:600;padding:14px 28px;border-radius:999px;
-    border:1px solid rgba(255,255,255,.4);box-shadow:0 10px 28px rgba(255,111,156,.45),var(--ghi);
+  .chips{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .chip{display:inline-flex;align-items:baseline;gap:5px;font-size:9.5px;color:var(--mut);letter-spacing:.08em;
+    background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.75);border-radius:999px;padding:4px 11px;}
+  .chip b{color:#e08a2a;font-size:14px;font-variant-numeric:tabular-nums;}
+  /* 橫向照片條 */
+  #strip{display:none;gap:8px;margin-top:11px;overflow-x:auto;padding:2px;scrollbar-width:none;}
+  #strip::-webkit-scrollbar{display:none;}
+  #strip img{width:56px;height:56px;object-fit:cover;border-radius:12px;flex:none;
+    border:2px solid rgba(255,255,255,.85);box-shadow:0 3px 8px rgba(150,115,50,.16);}
+  #strip img:active{transform:scale(.94);}
+  /* 新增照片 FAB（黏在窗格右上角） */
+  .fab{position:absolute;top:-24px;right:14px;width:52px;height:52px;border-radius:50%;
+    background:var(--grad);color:#fffaf0;font-size:26px;font-weight:500;
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid rgba(255,255,255,.5);
+    box-shadow:0 10px 24px rgba(240,150,40,.45),var(--ghi);
     animation:glow 3.4s ease-in-out infinite;}
-  #pickBtn:active{transform:scale(.96);}
-  @keyframes glow{0%,100%{box-shadow:0 10px 26px rgba(255,140,110,.42),var(--ghi);}
-    50%{box-shadow:0 14px 34px rgba(155,108,255,.5),var(--ghi);}}
+  .fab:active{transform:scale(.94);}
+  @keyframes glow{0%,100%{box-shadow:0 8px 20px rgba(240,150,40,.38),var(--ghi);}
+    50%{box-shadow:0 12px 30px rgba(226,128,42,.55),var(--ghi);}}
   #file{display:none;}
-  #toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 82px);left:50%;transform:translateX(-50%);z-index:40;
-    background:rgba(58,53,80,.9);color:#fff;font-size:13px;padding:9px 18px;border-radius:999px;display:none;
-    backdrop-filter:blur(10px);box-shadow:0 8px 22px rgba(120,105,175,.3);}
+  #toast{position:fixed;z-index:50;top:calc(env(safe-area-inset-top) + 64px);left:50%;transform:translateX(-50%);
+    background:rgba(91,74,44,.92);color:#fffaf0;font-size:13px;padding:9px 18px;border-radius:999px;display:none;
+    backdrop-filter:blur(10px);box-shadow:0 8px 22px rgba(150,115,50,.3);}
 </style>
 <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
 <script src="https://unpkg.com/globe.gl@2.32.0/dist/globe.gl.min.js"></script>
 <script src="https://unpkg.com/exifr@7.1.3/dist/full.umd.js"></script>
 </head>
 <body>
-<header class="glass">
+<div id="halo"></div>
+<div id="globeViz"></div>
+
+<div class="topbar glass">
   <div class="title"><span class="en">footsteps</span><svg class="feet" viewBox="0 0 46 30" role="img" aria-label="足跡">
     <defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcf5a"/><stop offset=".55" stop-color="#f5a622"/><stop offset="1" stop-color="#e2802a"/></linearGradient></defs>
     <g fill="url(#fg)">
@@ -114,32 +124,37 @@
       <circle cx="36.6" cy="3.4" r="1.5"/><circle cx="33.3" cy="1.9" r="1.6"/><circle cx="29.9" cy="2" r="1.5"/><circle cx="27" cy="3.5" r="1.3"/>
     </g>
   </svg></div>
-  <div class="stats">
-    <div class="stat"><div class="n" id="sTrips">0</div><div class="l">FOOTPRINTS</div></div>
-    <div class="stat"><div class="n" id="sCountries">0</div><div class="l">COUNTRIES</div></div>
-    <div class="stat"><div class="n teal" id="sSince">–</div><div class="l" id="sSinceL">SINCE</div></div>
-  </div>
-</header>
-
-<div class="globe-wrap">
-  <div id="globeViz"></div>
-  <div id="empty">按下方「選照片」<br>從相簿挑帶定位的照片<br>就會標到地球上</div>
-  <div id="attrib">Imagery © Esri, Maxar, Earthstar Geographics</div>
-  <div id="card">
-    <span class="x" id="cardX">✕</span>
-    <div class="top"><span class="d"></span><span id="cCoord"></span><span class="rg" id="cRegion"></span></div>
-    <img id="cImg">
-    <div class="row"><span class="flag" id="cFlag"></span><span class="place" id="cPlace"></span></div>
-    <div class="date" id="cDate"></div>
-  </div>
 </div>
 
-<div class="panel">
-  <div class="ph"><span>REGIONS</span><span>DISTRIBUTION</span></div>
-  <div class="dist"><div id="donut"></div><div id="legend"></div></div>
+<div id="empty">按右下「＋」選照片<br>從相簿挑帶定位的照片<br>就會標到地球上</div>
+<div id="attrib">Imagery © Esri, Maxar, Earthstar Geographics</div>
+
+<div id="card">
+  <span class="x" id="cardX">✕</span>
+  <div class="top"><span class="d"></span><span id="cCoord"></span><span class="rg" id="cRegion"></span></div>
+  <img id="cImg">
+  <div class="row"><span class="flag" id="cFlag"></span><span class="place" id="cPlace"></span></div>
+  <div class="date" id="cDate"></div>
 </div>
 
-<div id="pickWrap"><label id="pickBtn" for="file">＋ 選照片</label><input id="file" type="file" accept="image/*" multiple></div>
+<div class="sheet glass" id="sheet">
+  <button id="sheetToggle" aria-label="收合/展開"></button>
+  <div class="sheet-body">
+    <div class="dist">
+      <div id="donut"></div>
+      <div class="side">
+        <div id="legend"></div>
+        <div class="chips">
+          <span class="chip"><b id="sCountries">0</b>COUNTRIES</span>
+          <span class="chip"><b id="sSince">–</b><span id="sSinceL">YEARS</span></span>
+        </div>
+      </div>
+    </div>
+    <div id="strip"></div>
+  </div>
+  <label class="fab" for="file">＋</label>
+  <input id="file" type="file" accept="image/*" multiple>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -296,16 +311,27 @@ function refresh(){
   world.pointsData(PTS.slice());
   world.ringsData(PTS.slice());
   document.getElementById('empty').style.display=PTS.length?'none':'block';
-  renderStats();renderDonut();
+  renderStats();renderDonut();renderStrip();
 }
 function renderStats(){
-  document.getElementById('sTrips').textContent=PTS.length;
   document.getElementById('sCountries').textContent=new Set(PTS.map(p=>p.cc).filter(Boolean)).size;
   const ys=PTS.map(p=>p.date&&+p.date.slice(0,4)).filter(Boolean);
   const el=document.getElementById('sSince');
-  if(ys.length){const m=Math.min(...ys);el.textContent=(new Date().getFullYear()-m+1);document.getElementById('sSinceL').innerHTML='YEARS<br>SINCE '+m;}
-  else{el.textContent='–';document.getElementById('sSinceL').textContent='SINCE';}
+  if(ys.length){const m=Math.min(...ys);el.textContent=(new Date().getFullYear()-m+1);
+    document.getElementById('sSinceL').textContent='YEARS · SINCE '+m;}
+  else{el.textContent='–';document.getElementById('sSinceL').textContent='YEARS';}
 }
+// 橫向照片條：最新在前，點縮圖飛到該足跡並開卡片
+function renderStrip(){
+  const s=document.getElementById('strip');
+  if(!PTS.length){s.style.display='none';return;}
+  s.style.display='flex';
+  const rev=PTS.slice().reverse();
+  s.innerHTML=rev.map(p=>`<img src="${p.thumb}" alt="${p.place||''}">`).join('');
+  [...s.children].forEach((img,i)=>img.onclick=()=>{const p=rev[i];
+    world.pointOfView({lat:p.lat,lng:p.lon,altitude:0.35},1200);showCard(p);});
+}
+document.getElementById('sheetToggle').onclick=()=>document.getElementById('sheet').classList.toggle('collapsed');
 function renderDonut(){
   const c={};PTS.forEach(p=>{const r=p.region||'Other';c[r]=(c[r]||0)+1;});
   const ent=Object.entries(c).sort((a,b)=>b[1]-a[1]);const total=PTS.length||1;
@@ -381,9 +407,8 @@ function fillCard(d){
   document.getElementById('cDate').textContent=d.date?d.date.slice(0,7).replace('-','.'):'';
 }
 function showCard(d){CARD_PT=d;fillCard(d);card.style.display='block';
-  const wrap=document.querySelector('.globe-wrap');
-  card.style.left=(wrap.clientWidth-card.offsetWidth)/2+'px';
-  card.style.top=(wrap.clientHeight-card.offsetHeight)/2+'px';
+  card.style.left=(innerWidth-card.offsetWidth)/2+'px';
+  card.style.top=Math.max(70,innerHeight*0.40-card.offsetHeight/2)+'px';
   if(!d.cc)enqueueGeo(d);
 }
 
