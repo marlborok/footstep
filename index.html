@@ -180,7 +180,7 @@ const world=Globe()(document.getElementById('globeViz'))
  .bumpImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png')
  .showAtmosphere(true).atmosphereColor('#ffb44f').atmosphereAltitude(0.36)
  .pointLat('lat').pointLng('lon')
- .pointColor(()=> 'rgba(255,77,157,0.95)').pointRadius(0.62)
+ .pointColor(()=> 'rgba(255,77,157,0.7)').pointRadius(0.62)
  .pointAltitude(0.05).pointLabel(d=>d.place||'')
  .pointsMerge(false)
  .onPointHover(d=>{if(d)showCard(d);})
@@ -205,12 +205,18 @@ function pointBaseRadius(){const a=world.pointOfView().altitude;return Math.max(
 function applyPointScale(){const a=world.pointOfView().altitude;
   world.pointRadius(pointBaseRadius());
   world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));}
-let _bl=0;
-function breathe(ts){requestAnimationFrame(breathe);if(ts-_bl<60)return;_bl=ts;
-  const t=(Math.sin(ts/700)+1)/2, base=pointBaseRadius();
-  world.pointColor(()=>`rgba(255,77,157,${(0.62+0.38*t).toFixed(2)})`);
-  world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));}
-requestAnimationFrame(breathe);
+// 統一驅動：呼吸燈 + 光點縮放 + 圖磚更新。
+// 用 setInterval 而非 requestAnimationFrame——rAF 在頁面隱藏/低耗電模式會被暫停，
+// 且自轉中也要持續更新圖磚。
+setInterval(()=>{
+  const now=performance.now(), t=(Math.sin(now/700)+1)/2;
+  const a=world.pointOfView().altitude;
+  const base=Math.max(0.0008,Math.min(0.7,a*0.28));
+  world.pointColor(()=>`rgba(255,77,157,${(0.5+0.28*t).toFixed(2)})`);
+  world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));
+  world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));
+  updateTiles();
+},80);
 
 // ---- 圖磚 LOD：放大時只載入視野內、對應縮放層級的高解析度衛星圖磚 ----
 const TILE_URL=(x,y,z)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
@@ -237,9 +243,12 @@ function tileMat(x,y,z){
 world.tileLat('lat').tileLng('lng').tileWidth('w').tileHeight('h')
  .tileAltitude(0.0009).tileCurvatureResolution(5)
  .tileMaterial(d=>tileMat(d.x,d.y,d.z));
+let _tileKey='';
 function updateTiles(){
   const pov=world.pointOfView(),alt=pov.altitude,att=document.getElementById('attrib');
-  if(alt>TILE_ALT_ON){if(world.tilesData().length)world.tilesData([]);if(att)att.style.display='none';return;}
+  if(alt>TILE_ALT_ON){
+    if(_tileKey!==''){_tileKey='';world.tilesData([]);}
+    if(att)att.style.display='none';return;}
   // 視野跨距：取「相機 FOV 實際看到的地表弧長」與「地平線可視角」較小者
   const cam=world.camera();
   const fovSpan=2*alt*Math.tan(cam.fov*Math.PI/360)*180/Math.PI;
@@ -257,9 +266,13 @@ function updateTiles(){
     for(let xi=x0;xi<=x1&&tiles.length<TILE_MAX;xi++){
       const x=((xi%n)+n)%n;
       const north=tile2lat(y,z),south=tile2lat(y+1,z),west=tile2lon(x,z),east=tile2lon(x+1,z);
-      tiles.push({x,y,z,lat:(north+south)/2,lng:(west+east)/2,w:east-west,h:north-south});
+      // 略微放大 0.6% 讓相鄰磚重疊，消除磚縫透出底圖的格線
+      tiles.push({x,y,z,lat:(north+south)/2,lng:(west+east)/2,
+        w:(east-west)*1.006,h:(north-south)*1.006});
     }
-  world.tilesData(tiles);
+  // 只有磚組真的改變時才重建，避免每次呼叫都重繪（自轉時才不會一直閃爍/重載）
+  const key=z+':'+tiles.map(d=>d.x+','+d.y).join('|');
+  if(key!==_tileKey){_tileKey=key;world.tilesData(tiles);}
   if(att)att.style.display='block';
 }
 world.onZoom(()=>{updateTiles();applyPointScale();});
