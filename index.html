@@ -16,7 +16,7 @@
 <style>
   :root{--ink:#5b4a2c;--mut:#a9946a;--line:rgba(150,120,70,.16);
     --grad:linear-gradient(120deg,#ffcf5a 0%,#f5a622 55%,#e2802a 100%);
-    --glass:rgba(255,252,242,.68);--glass2:rgba(255,252,242,.8);
+    --glass:rgba(255,252,242,.58);--glass2:rgba(255,252,242,.7);
     --gshadow:0 12px 34px rgba(150,115,50,.16);--ghi:inset 0 1px 0 rgba(255,255,255,.85);}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;height:100%;overflow:hidden;background:
@@ -26,12 +26,12 @@
     color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
     -webkit-user-select:none;user-select:none;}
   /* z0 地球後方光暈 */
-  #halo{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:0;
+  #halo{position:fixed;left:50%;top:calc(50% - 7vh);transform:translate(-50%,-50%);z-index:0;
     width:min(110vw,600px);aspect-ratio:1;border-radius:50%;pointer-events:none;
     background:radial-gradient(circle,rgba(255,190,100,.22) 0%,rgba(255,165,85,.08) 48%,transparent 72%);
     filter:blur(14px);}
-  /* z1 全螢幕地球畫布 */
-  #globeViz{position:fixed;inset:0;z-index:1;}
+  /* z1 全螢幕地球畫布（上移 7vh：釋放頂部空間、遠離底部資訊窗格） */
+  #globeViz{position:fixed;left:0;right:0;top:-7vh;height:100vh;z-index:1;}
   .glass{background:var(--glass);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);
     border:1px solid rgba(255,255,255,.65);box-shadow:var(--gshadow),var(--ghi);}
   /* z20 頂部浮動品牌膠囊 */
@@ -83,13 +83,15 @@
   .lg .cn{margin-left:auto;font-weight:700;color:var(--ink);}
   .chips{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
   .chip{display:inline-flex;align-items:baseline;gap:5px;font-size:9.5px;color:var(--mut);letter-spacing:.08em;
-    background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.75);border-radius:999px;padding:4px 11px;}
+    background:rgba(255,255,255,.38);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:4px 11px;
+    box-shadow:0 2px 8px rgba(150,115,50,.08),inset 0 1px 0 rgba(255,255,255,.7);}
   .chip b{color:#e08a2a;font-size:14px;font-variant-numeric:tabular-nums;}
   /* 橫向照片條 */
   #strip{display:none;gap:8px;margin-top:11px;overflow-x:auto;padding:2px;scrollbar-width:none;}
   #strip::-webkit-scrollbar{display:none;}
   #strip img{width:56px;height:56px;object-fit:cover;border-radius:12px;flex:none;
-    border:2px solid rgba(255,255,255,.85);box-shadow:0 3px 8px rgba(150,115,50,.16);}
+    border:2px solid rgba(255,255,255,.55);box-shadow:0 3px 10px rgba(150,115,50,.14),inset 0 1px 0 rgba(255,255,255,.5);}
   #strip img:active{transform:scale(.94);}
   /* 新增照片 FAB（黏在窗格右上角） */
   .fab{position:absolute;top:-24px;right:14px;width:52px;height:52px;border-radius:50%;
@@ -211,7 +213,7 @@ world.lights([new THREE.AmbientLight(0xffffff,1.3),
 
 // 地球改用實拍藍色彈珠貼圖，不再需要水彩產生器
 // 呼吸光暈環（同步呼吸燈的亮色）
-world.ringsData([]).ringColor(()=> t=>`rgba(255,255,255,${(1-t)*0.9})`)
+world.ringsData([]).ringColor(()=> t=>`rgba(140,235,255,${(1-t)*0.85})`)
  .ringMaxRadius(2.8).ringPropagationSpeed(1.3).ringRepeatPeriod(1400)
  .ringLat('lat').ringLng('lon');
 // 亮點以呼吸燈方式明暗閃爍（亮青綠系）
@@ -220,6 +222,15 @@ function pointBaseRadius(){const a=world.pointOfView().altitude;return Math.max(
 function applyPointScale(){const a=world.pointOfView().altitude;
   world.pointRadius(pointBaseRadius());
   world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));}
+// 霓虹光點：由下而上「粉→紫→青」漸層貼圖（圓柱 UV 的 v 軸沿高度，垂直漸層直接成立）
+const neonMat=(()=>{
+  const c=document.createElement('canvas');c.width=2;c.height=128;
+  const x=c.getContext('2d');const g=x.createLinearGradient(0,128,0,0);
+  g.addColorStop(0,'#ff2ea6');g.addColorStop(.5,'#b14dff');g.addColorStop(1,'#2ee6ff');
+  x.fillStyle=g;x.fillRect(0,0,2,128);
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+  return new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.85});
+})();
 // 統一驅動：呼吸燈 + 光點縮放 + 圖磚更新。
 // 用 setInterval 而非 requestAnimationFrame——rAF 在頁面隱藏/低耗電模式會被暫停，
 // 且自轉中也要持續更新圖磚。
@@ -227,9 +238,11 @@ setInterval(()=>{
   const now=performance.now(), t=(Math.sin(now/700)+1)/2;
   const a=world.pointOfView().altitude;
   const base=Math.max(0.0008,Math.min(0.7,a*0.28));
-  world.pointColor(()=>`rgba(255,77,157,${(0.5+0.28*t).toFixed(2)})`);
+  neonMat.opacity=+(0.55+0.35*t).toFixed(2);   // 呼吸＝霓虹明暗
   world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));
   world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));
+  // 把每個點的材質換成霓虹漸層（點物件重建後也會在下一拍補上）
+  world.pointsData().forEach(d=>{const o=d.__threeObj;if(o&&o.material!==neonMat)o.material=neonMat;});
   // 放大看細節時停止自轉（圖磚才來得及載入、也不會被帶走視角）；拉遠回全球視野才恢復
   world.controls().autoRotate = a>TILE_ALT_ON;
   updateTiles();
