@@ -213,12 +213,9 @@ world.lights([new THREE.AmbientLight(0xffffff,1.3),
 world.ringsData([]).ringColor(()=> t=>`rgba(140,235,255,${(1-t)*0.85})`)
  .ringMaxRadius(2.8).ringPropagationSpeed(1.3).ringRepeatPeriod(1400)
  .ringLat('lat').ringLng('lon');
-// 亮點以呼吸燈方式明暗閃爍（亮青綠系）
-// 光點隨鏡頭距離等比縮放：維持固定螢幕大小、拉近時貼合地表（但仍高於圖磚，不被蓋住）
-function pointBaseRadius(){const a=world.pointOfView().altitude;return Math.max(0.0008,Math.min(0.7,a*0.28));}
-function applyPointScale(){const a=world.pointOfView().altitude;
-  world.pointRadius(pointBaseRadius());
-  world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));}
+// 設定值一次到位：關閉點的過渡動畫。
+// （預設 1s 過渡＋高頻重設＝動畫永遠重啟跑不完，iOS 節流下點會卡在初始大小）
+world.pointsTransitionDuration(0);
 // 霓虹光點：由下而上「粉→紫→青」漸層貼圖（圓柱 UV 的 v 軸沿高度，垂直漸層直接成立）
 const neonMat=(()=>{
   const c=document.createElement('canvas');c.width=2;c.height=128;
@@ -228,26 +225,35 @@ const neonMat=(()=>{
   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
   return new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.85});
 })();
-// 統一驅動：呼吸燈 + 光點縮放 + 圖磚更新。
-// 用 setInterval 而非 requestAnimationFrame——rAF 在頁面隱藏/低耗電模式會被暫停，
-// 且自轉中也要持續更新圖磚。
-setInterval(()=>{
-  const now=performance.now(), t=(Math.sin(now/700)+1)/2;
-  const a=world.pointOfView().altitude;
-  const base=Math.max(0.0008,Math.min(0.7,a*0.28));
-  neonMat.opacity=+(0.55+0.35*t).toFixed(2);   // 呼吸＝霓虹明暗
-  world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));
-  world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));
-  // 把每個點的材質換成霓虹漸層（點物件重建後也會在下一拍補上）
-  world.pointsData().forEach(d=>{const o=d.__threeObj;if(o&&o.material!==neonMat)o.material=neonMat;});
-  // 放大看細節時停止自轉（視角不被帶走）；拉遠回全球視野才恢復
-  world.controls().autoRotate = a>0.7;
-},80);
-// 雙保險：縮放/拖曳手勢的每一刻即時更新（手機上 setInterval 可能在手勢期間被節流）
-world.controls().addEventListener('change',applyPointScale);
+// 統一驅動：呼吸燈 + 光點縮放/貼地 + 材質替換 + 自轉開關
+let _lastTick=0;
+function tick(){
+  const now=performance.now();if(now-_lastTick<50)return;_lastTick=now;
+  try{
+    const t=(Math.sin(now/700)+1)/2;
+    const a=world.pointOfView().altitude;
+    const base=Math.max(0.0008,Math.min(0.7,a*0.28));
+    neonMat.opacity=+(0.55+0.35*t).toFixed(2);   // 呼吸＝霓虹明暗
+    world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));
+    world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));
+    world.pointsData().forEach(d=>{const o=d.__threeObj;if(o&&o.material!==neonMat)o.material=neonMat;});
+    // 放大看細節時停止自轉（視角不被帶走）；拉遠回全球視野才恢復
+    world.controls().autoRotate = a>0.7;
+  }catch(_){}
+}
+// 驅動一：掛在地球網格的 onBeforeRender——跟著實際渲染幀執行，
+// 不依賴計時器（iOS 低耗電模式會重度節流 setInterval/rAF 計時，但渲染幀照跑）
+(function hookRender(){
+  let m=null;
+  world.scene().traverse(o=>{if(!m&&o.isMesh&&o.geometry&&o.geometry.type==='SphereGeometry')m=o;});
+  if(m)m.onBeforeRender=()=>tick();
+  else setTimeout(hookRender,300);
+})();
+// 驅動二：計時器備援 + 手勢即時
+setInterval(tick,80);
+world.controls().addEventListener('change',tick);
 
-world.onZoom(applyPointScale);
-applyPointScale();
+world.onZoom(()=>{_lastTick=0;tick();});
 
 world.controls().autoRotate=true;world.controls().autoRotateSpeed=0.4;
 function sizeGlobe(){const el=document.getElementById('globeViz');world.width(el.clientWidth).height(el.clientHeight);}
