@@ -223,7 +223,9 @@ const neonMat=(()=>{
   g.addColorStop(0,'#ffd23d');g.addColorStop(.5,'#ff8a2a');g.addColorStop(1,'#ff4f8b');
   x.fillStyle=g;x.fillRect(0,0,2,128);
   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
-  return new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.85});
+  // 加法混色＝真正的霓虹發光：顏色疊加到背景上（深色海洋上會亮起來），不會與底圖混濁
+  return new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:.95,
+    blending:THREE.AdditiveBlending,depthWrite:false});
 })();
 // 統一驅動：呼吸燈 + 光點縮放/貼地 + 材質替換 + 自轉開關
 let _lastTick=0;
@@ -232,10 +234,11 @@ function tick(){
   try{
     const t=(Math.sin(now/700)+1)/2;
     const a=world.pointOfView().altitude;
-    const base=Math.max(0.0008,Math.min(0.7,a*0.28));
-    neonMat.opacity=+(0.55+0.35*t).toFixed(2);   // 呼吸＝霓虹明暗
+    // 細高「光柱」形：側面才看得到由下而上的漸層（純俯視只會看到頂蓋單色）
+    const base=Math.max(0.0006,Math.min(0.42,a*0.17));
+    neonMat.opacity=+(0.68+0.32*t).toFixed(2);   // 呼吸＝霓虹明暗
     world.pointRadius(+(base*(0.85+0.3*t)).toFixed(4));
-    world.pointAltitude(Math.max(0.0015,Math.min(0.05,a*0.02)));
+    world.pointAltitude(Math.max(0.002,Math.min(0.1,a*0.045)));
     world.pointsData().forEach(d=>{const o=d.__threeObj;if(o&&o.material!==neonMat)o.material=neonMat;});
     // 放大看細節時停止自轉（視角不被帶走）；拉遠回全球視野才恢復
     world.controls().autoRotate = a>0.7;
