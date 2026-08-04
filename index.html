@@ -325,7 +325,7 @@ function buildParticleGlobe(){
   });
   function makePoints(sampler){
     const R=world.getGlobeRadius()*1.004;
-    const N=7200,golden=Math.PI*(3-Math.sqrt(5));
+    const N=26000,golden=Math.PI*(3-Math.sqrt(5));
     const landPal=[[255,210,61],[255,184,74],[255,154,61],[245,166,34],[255,138,42],[255,196,90]];
     const seaCol=[255,222,168];
     const positions=[],colors=[],sizes=[];
@@ -341,24 +341,27 @@ function buildParticleGlobe(){
         const r=sampler.data[idx],g=sampler.data[idx+1],b=sampler.data[idx+2];
         land=!(b>r+14&&b>g+8);
       }
-      const keep=land?Math.random()<0.92:Math.random()<0.1;
+      const keep=land?Math.random()<0.88:Math.random()<0.07;
       if(!keep)continue;
       const latR=lat*Math.PI/180,lonR=lon*Math.PI/180;
       positions.push(R*Math.cos(latR)*Math.sin(lonR),R*Math.sin(latR),R*Math.cos(latR)*Math.cos(lonR));
       const pal=land?landPal[Math.floor(Math.random()*landPal.length)]:seaCol;
       const jitter=0.9+Math.random()*0.2;
       colors.push(Math.min(1,pal[0]/255*jitter),Math.min(1,pal[1]/255*jitter),Math.min(1,pal[2]/255*jitter));
-      sizes.push(land?(2.4+Math.random()*2.4):(1.1+Math.random()*1.0));
+      sizes.push(land?(1.5+Math.random()*1.3):(0.8+Math.random()*0.6));
     }
     const geo=new THREE.BufferGeometry();
     geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
     geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
     geo.setAttribute('size',new THREE.Float32BufferAttribute(sizes,1));
     const mat=new THREE.ShaderMaterial({
-      uniforms:{pointTexture:{value:dotSpriteTexture()}},
-      vertexShader:`attribute float size;attribute vec3 color;varying vec3 vColor;
+      uniforms:{pointTexture:{value:dotSpriteTexture()},dpr:{value:Math.min(window.devicePixelRatio||1,3)}},
+      // gl_PointSize 以 framebuffer 像素計算，需乘 DPR 才能在 retina 上得到相同視覺大小；
+      // 係數 640 = 預設視距(球半徑100、altitude 2.2 → 距離 320)下讓 size 1 約等於 2 CSS px。
+      // clamp 避免拉近時單點膨脹成大色塊。
+      vertexShader:`attribute float size;attribute vec3 color;varying vec3 vColor;uniform float dpr;
         void main(){vColor=color;vec4 mv=modelViewMatrix*vec4(position,1.0);
-        gl_PointSize=size*(160.0/-mv.z);gl_Position=projectionMatrix*mv;}`,
+        gl_PointSize=clamp(size*(640.0/-mv.z),1.0,16.0)*dpr;gl_Position=projectionMatrix*mv;}`,
       fragmentShader:`uniform sampler2D pointTexture;varying vec3 vColor;
         void main(){vec4 tex=texture2D(pointTexture,gl_PointCoord);
         if(tex.a<0.06)discard;gl_FragColor=vec4(vColor,tex.a);}`,
@@ -372,17 +375,24 @@ function buildParticleGlobe(){
   return particleBuilding;
 }
 let globeStyle=localStorage.getItem('globeStyle')||'realistic';
-async function applyGlobeStyle(style){
+async function applyGlobeStyle(style,_retry){
   globeStyle=style;try{localStorage.setItem('globeStyle',style);}catch(_){}
   document.querySelectorAll('.ssBtn').forEach(b=>b.classList.toggle('active',b.dataset.style===style));
   const mesh=getGlobeMesh();
+  // 啟動當下 earth-8k.jpg 可能還沒載完，地球本體尚未帶 map 而找不到 →
+  // 稍後重試，否則顆粒模式下寫實地球不會被藏起來。
+  if(!mesh&&(_retry||0)<25){setTimeout(()=>applyGlobeStyle(style,(_retry||0)+1),250);}
   if(style==='particle'){
     const pts=await buildParticleGlobe();
     if(mesh)mesh.visible=false;
     if(pts)pts.visible=true;
+    // 必須一併關閉大氣層：它是獨立的內側渲染輝光球，
+    // 地球本體一藏、失去遮蔽就會整顆爆成實心橘球蓋住顆粒。
+    world.showAtmosphere(false);
   }else{
     if(mesh)mesh.visible=true;
     if(particlePoints)particlePoints.visible=false;
+    world.showAtmosphere(true);
   }
 }
 document.querySelectorAll('.ssBtn').forEach(b=>b.addEventListener('click',()=>applyGlobeStyle(b.dataset.style)));
