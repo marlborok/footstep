@@ -374,6 +374,19 @@ function buildParticleGlobe(){
   }
   return particleBuilding;
 }
+// 國界細線（僅顆粒模式顯示）：透明填色 + 只留描邊
+world.polygonCapColor(()=> 'rgba(0,0,0,0)').polygonSideColor(()=> 'rgba(0,0,0,0)')
+ .polygonStrokeColor(()=> 'rgba(226,128,42,0.55)').polygonAltitude(0.006);
+let borderGeo=null,borderLoading=null;
+function loadBorders(){
+  if(borderGeo)return Promise.resolve(borderGeo);
+  if(borderLoading)return borderLoading;
+  borderLoading=fetch('https://cdn.jsdelivr.net/gh/vasturiano/globe.gl/example/datasets/ne_110m_admin_0_countries.geojson')
+    .then(r=>r.json())
+    .then(d=>{borderGeo=(d.features||[]).filter(f=>f.properties.ISO_A2!=='AQ');return borderGeo;})
+    .catch(()=>{borderGeo=[];return borderGeo;});
+  return borderLoading;
+}
 let globeStyle=localStorage.getItem('globeStyle')||'realistic';
 async function applyGlobeStyle(style,_retry){
   globeStyle=style;try{localStorage.setItem('globeStyle',style);}catch(_){}
@@ -389,10 +402,12 @@ async function applyGlobeStyle(style,_retry){
     // 必須一併關閉大氣層：它是獨立的內側渲染輝光球，
     // 地球本體一藏、失去遮蔽就會整顆爆成實心橘球蓋住顆粒。
     world.showAtmosphere(false);
+    loadBorders().then(b=>{if(globeStyle==='particle')world.polygonsData(b);});
   }else{
     if(mesh)mesh.visible=true;
     if(particlePoints)particlePoints.visible=false;
     world.showAtmosphere(true);
+    world.polygonsData([]);
   }
 }
 document.querySelectorAll('.ssBtn').forEach(b=>b.addEventListener('click',()=>applyGlobeStyle(b.dataset.style)));
