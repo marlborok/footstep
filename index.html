@@ -94,6 +94,19 @@
     border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:4px 11px;
     box-shadow:0 2px 8px rgba(150,115,50,.08),inset 0 1px 0 rgba(255,255,255,.7);}
   .chip b{color:#e08a2a;font-size:14px;font-variant-numeric:tabular-nums;}
+  /* 年份時間軸 */
+  #years{display:none;gap:6px;overflow-x:auto;padding:2px 2px 9px;scrollbar-width:none;
+    border-bottom:1px solid rgba(150,120,70,.14);margin-bottom:10px;}
+  #years::-webkit-scrollbar{display:none;}
+  .yr{flex:none;font-size:12px;letter-spacing:.04em;color:var(--mut);white-space:nowrap;
+    background:rgba(255,255,255,.38);border:1px solid rgba(255,255,255,.6);border-radius:999px;
+    padding:5px 13px;font-variant-numeric:tabular-nums;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+  .yr b{font-weight:700;color:var(--ink);}
+  .yr.on{background:var(--grad);border-color:rgba(255,255,255,.5);color:#fffaf0;
+    box-shadow:0 3px 10px rgba(240,150,40,.35);}
+  .yr.on b{color:#fffaf0;}
+  .yr:active{transform:scale(.94);}
   /* 橫向照片條 */
   #strip{display:none;gap:8px;margin-top:11px;overflow-x:auto;padding:2px;scrollbar-width:none;}
   #strip::-webkit-scrollbar{display:none;}
@@ -162,6 +175,7 @@
 <div class="sheet glass" id="sheet">
   <button id="sheetToggle" aria-label="收合/展開"></button>
   <div class="sheet-body">
+    <div id="years"></div>
     <div class="dist">
       <div id="donut"></div>
       <div class="side">
@@ -236,6 +250,13 @@ world.lights([new THREE.AmbientLight(0xffffff,1.3),
 world.ringsData([]).ringColor(()=> t=>`rgba(255,140,175,${(1-t)*1.0})`)
  .ringMaxRadius(3.6).ringPropagationSpeed(1.2).ringRepeatPeriod(1000)
  .ringLat('lat').ringLng('lon');
+// 旅程連線：流動虛線的弧，深玫瑰→琥珀（深色在藍海與奶油底上都看得見）
+world.arcsData([])
+ .arcStartLat('sLat').arcStartLng('sLng').arcEndLat('eLat').arcEndLng('eLng')
+ .arcColor(()=> ['rgba(214,23,92,0.85)','rgba(233,163,11,0.85)'])
+ .arcStroke(0.42).arcAltitudeAutoScale(0.42)
+ .arcDashLength(0.45).arcDashGap(0.18).arcDashAnimateTime(2600)
+ .arcsTransitionDuration(600);
 // 設定值一次到位：關閉點的過渡動畫。
 // （預設 1s 過渡＋高頻重設＝動畫永遠重啟跑不完，iOS 節流下點會卡在初始大小）
 world.pointsTransitionDuration(0);
@@ -453,38 +474,78 @@ async function applyGlobeStyle(style,_retry){
 document.querySelectorAll('.ssBtn').forEach(b=>b.addEventListener('click',()=>applyGlobeStyle(b.dataset.style)));
 applyGlobeStyle(globeStyle);
 
-function refresh(){
-  world.pointsData(PTS.slice());
-  world.ringsData(PTS.slice());
-  document.getElementById('empty').style.display=PTS.length?'none':'block';
-  renderStats();renderDonut();renderStrip();
+// ---- 年份篩選 ----
+let yearFilter='all';
+function visiblePts(){
+  return yearFilter==='all'?PTS:PTS.filter(p=>p.date&&p.date.slice(0,4)===yearFilter);
 }
-function renderStats(){
-  document.getElementById('sCountries').textContent=new Set(PTS.map(p=>p.cc).filter(Boolean)).size;
-  const ys=PTS.map(p=>p.date&&+p.date.slice(0,4)).filter(Boolean);
+// ---- 旅程連線：依時間順序把足跡連成弧線 ----
+function buildArcs(pts){
+  const seq=pts.filter(p=>p.date).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const arcs=[];
+  for(let i=0;i<seq.length-1;i++){
+    const a=seq[i],b=seq[i+1];
+    // 同地點（<25km）不連線，避免同城市照片間出現一堆碎弧
+    const dLat=(b.lat-a.lat)*111, dLon=(b.lon-a.lon)*111*Math.cos(a.lat*Math.PI/180);
+    if(Math.hypot(dLat,dLon)<25)continue;
+    arcs.push({sLat:a.lat,sLng:a.lon,eLat:b.lat,eLng:b.lon});
+  }
+  return arcs;
+}
+function refresh(){
+  const vis=visiblePts();
+  world.pointsData(vis.slice());
+  world.ringsData(vis.slice());
+  world.arcsData(buildArcs(vis));
+  document.getElementById('empty').style.display=PTS.length?'none':'block';
+  renderYears();renderStats(vis);renderDonut(vis);renderStrip(vis);
+}
+// 年份籤：ALL + 各年份，點擊只顯示該年的足跡與旅程
+function renderYears(){
+  const el=document.getElementById('years');
+  const cnt={};PTS.forEach(p=>{if(p.date){const y=p.date.slice(0,4);cnt[y]=(cnt[y]||0)+1;}});
+  const ys=Object.keys(cnt).sort();
+  if(ys.length<2){el.style.display='none';yearFilter='all';return;}   // 只有一年就不顯示
+  el.style.display='flex';
+  el.innerHTML=`<button class="yr${yearFilter==='all'?' on':''}" data-y="all">ALL <b>${PTS.length}</b></button>`+
+    ys.map(y=>`<button class="yr${yearFilter===y?' on':''}" data-y="${y}">${y} <b>${cnt[y]}</b></button>`).join('');
+  [...el.children].forEach(b=>b.onclick=()=>{
+    yearFilter=b.dataset.y;
+    card.style.display='none';CARD_PT=null;      // 篩選後原本開著的卡片可能已不在範圍
+    refresh();
+    const v=visiblePts();
+    if(v.length)world.pointOfView({lat:v[0].lat,lng:v[0].lon,altitude:2.2},900);
+  });
+}
+function renderStats(vis){
+  vis=vis||visiblePts();
+  document.getElementById('sCountries').textContent=new Set(vis.map(p=>p.cc).filter(Boolean)).size;
+  const ys=vis.map(p=>p.date&&+p.date.slice(0,4)).filter(Boolean);
   const el=document.getElementById('sSince');
   if(ys.length){const m=Math.min(...ys);el.textContent=(new Date().getFullYear()-m+1);
     document.getElementById('sSinceL').textContent='YEARS · SINCE '+m;}
   else{el.textContent='–';document.getElementById('sSinceL').textContent='YEARS';}
 }
 // 橫向照片條：最新在前，點縮圖飛到該足跡並開卡片
-function renderStrip(){
+function renderStrip(vis){
+  vis=vis||visiblePts();
   const s=document.getElementById('strip');
-  if(!PTS.length){s.style.display='none';return;}
+  if(!vis.length){s.style.display='none';return;}
   s.style.display='flex';
-  const rev=PTS.slice().reverse();
+  const rev=vis.slice().reverse();
   s.innerHTML=rev.map(p=>`<img src="${p.thumb}" alt="${p.place||''}">`).join('');
   [...s.children].forEach((img,i)=>img.onclick=()=>{const p=rev[i];
     world.pointOfView({lat:p.lat,lng:p.lon,altitude:0.35},1200);showCard(p);});
 }
 document.getElementById('sheetToggle').onclick=()=>document.getElementById('sheet').classList.toggle('collapsed');
-function renderDonut(){
-  const c={};PTS.forEach(p=>{const r=p.region||'Other';c[r]=(c[r]||0)+1;});
-  const ent=Object.entries(c).sort((a,b)=>b[1]-a[1]);const total=PTS.length||1;
+function renderDonut(vis){
+  vis=vis||visiblePts();
+  const c={};vis.forEach(p=>{const r=p.region||'Other';c[r]=(c[r]||0)+1;});
+  const ent=Object.entries(c).sort((a,b)=>b[1]-a[1]);const total=vis.length||1;
   const C=2*Math.PI*52;let off=0,ring='';
   ent.forEach(([r,n])=>{const len=n/total*C;
     ring+=`<circle cx="60" cy="60" r="52" fill="none" stroke="${REGION_COLORS[r]||'#c6cfcc'}" stroke-width="15" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 60 60)" stroke-linecap="butt"/>`;off+=len;});
-  document.getElementById('donut').innerHTML=`<svg viewBox="0 0 120 120">${ring}<text x="60" y="58" text-anchor="middle" class="dt-num">${PTS.length}</text><text x="60" y="74" text-anchor="middle" class="dt-lbl">FOOTPRINTS</text></svg>`;
+  document.getElementById('donut').innerHTML=`<svg viewBox="0 0 120 120">${ring}<text x="60" y="58" text-anchor="middle" class="dt-num">${vis.length}</text><text x="60" y="74" text-anchor="middle" class="dt-lbl">FOOTPRINTS</text></svg>`;
   document.getElementById('legend').innerHTML=ent.length?ent.map(([r,n])=>`<div class="lg"><span class="dot" style="background:${REGION_COLORS[r]||'#c6cfcc'}"></span><span class="rn">${r}</span><span class="cn">${n}</span></div>`).join(''):`<div class="lg"><span class="rn" style="color:var(--mut)">尚無資料</span></div>`;
 }
 
@@ -535,7 +596,8 @@ async function pumpGeo(){if(geoBusy)return;geoBusy=true;
         g={city:a.city||a.town||a.village||a.county||a.state||'',country:a.country||'',cc:(a.country_code||'').toUpperCase()};
         geoCache[key]=g;}catch(_){g=null;}await sleep(1100);}
     if(g){p.place=g.city;p.country=g.country;p.cc=g.cc;p.region=regionOf(g.cc);
-      renderStats();renderDonut();world.pointsData(PTS.slice());
+      const vis=visiblePts();
+      renderStats(vis);renderDonut(vis);world.pointsData(vis.slice());
       if(CARD_PT===p)fillCard(p);}
   }
   geoBusy=false;saveData();
