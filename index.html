@@ -36,8 +36,11 @@
     width:min(112vw,620px);aspect-ratio:1;border-radius:50%;pointer-events:none;
     background:radial-gradient(circle,rgba(96,168,255,.20) 0%,rgba(80,130,240,.09) 46%,transparent 72%);
     filter:blur(18px);}
-  /* z1 全螢幕地球畫布（上移 7vh：釋放頂部空間、遠離底部資訊窗格） */
-  #globeViz{position:fixed;left:0;right:0;top:-7vh;height:100vh;z-index:1;}
+  /* z1 全螢幕地球畫布。用 top/bottom 同時錨定而非固定 height：
+     原本 top:-7vh + height:100vh 只到 93vh，底部 7vh 沒有畫布，
+     地球與大氣輝光在那裡被切斷而露出空白。
+     -14vh~100vh 讓視覺中心維持在 43vh（與原本相同）且完整覆蓋到底。 */
+  #globeViz{position:fixed;left:0;right:0;top:-14vh;bottom:0;z-index:1;}
   .glass{background:var(--glass);backdrop-filter:blur(26px) saturate(1.25);-webkit-backdrop-filter:blur(26px) saturate(1.25);
     border:1px solid var(--stroke);box-shadow:var(--gshadow),var(--ghi);}
   /* z20 頂部浮動品牌膠囊 */
@@ -354,7 +357,19 @@ world.onZoom(()=>{_lastTick=0;tick();});
 
 world.controls().autoRotate=true;world.controls().autoRotateSpeed=0.4;
 function sizeGlobe(){const el=document.getElementById('globeViz');world.width(el.clientWidth).height(el.clientHeight);}
+// 畫布為了覆蓋到底部而比視窗高（114vh），相同視距下地球會等比放大。
+// 這裡把原本的 altitude 換算成等效視距，讓地球的視覺大小與調整前一致。
+// 用高度比值而非寬高比，啟動時容器尺寸未定也只會退回原值，不會算出荒謬視距。
+function viewAltitude(base){
+  const el=document.getElementById('globeViz');
+  const k=Math.max(1,el.clientHeight/Math.max(1,innerHeight));
+  return +((1+base)*k-1).toFixed(2);
+}
 sizeGlobe();addEventListener('resize',sizeGlobe);
+// 容器在啟動當下可能還沒有尺寸（renderer 會被設成 0 而整個畫面空白）。
+// ResizeObserver 在盒模型真正改變時必定觸發，比 rAF/setTimeout 猜時機可靠，
+// 也一併涵蓋橫豎切換與 iOS 工具列收合造成的高度變化。
+if(window.ResizeObserver)new ResizeObserver(sizeGlobe).observe(document.getElementById('globeViz'));
 
 // ---- 地球風格切換：寫實貼圖 <-> 顆粒點雲（原創設計，蜂蜜金色系）----
 // 顆粒點雲用現有 8K 貼圖取樣陸地/海洋，只在陸地密集撒點、海洋稀疏淡點，
@@ -561,7 +576,7 @@ function renderYears(){
     card.style.display='none';CARD_PT=null;      // 篩選後原本開著的卡片可能已不在範圍
     refresh();
     const v=visiblePts();
-    if(v.length)world.pointOfView({lat:v[0].lat,lng:v[0].lon,altitude:2.2},900);
+    if(v.length)world.pointOfView({lat:v[0].lat,lng:v[0].lon,altitude:viewAltitude(2.2)},900);
   });
 }
 function renderStats(vis){
@@ -618,7 +633,7 @@ document.getElementById('file').addEventListener('change',async e=>{
   PTS.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   refresh();await saveData();
   showToast(`完成：新增 ${added}，${noGps} 張無定位`);setTimeout(hideToast,2600);
-  if(added&&PTS.length===added)world.pointOfView({lat:PTS[0].lat,lng:PTS[0].lon,altitude:2.3},1400);
+  if(added&&PTS.length===added)world.pointOfView({lat:PTS[0].lat,lng:PTS[0].lon,altitude:viewAltitude(2.3)},1400);
 });
 function makeThumb(file){return new Promise((res,rej)=>{
   const url=URL.createObjectURL(file),img=new Image();
@@ -669,9 +684,17 @@ function showCard(d){CARD_PT=d;fillCard(d);card.style.display='block';
 
 // ---- 啟動 ----
 (async()=>{const s=await idbGet('data');
-  if(Array.isArray(s)&&s.length){PTS=s;refresh();world.pointOfView({lat:PTS[0].lat,lng:PTS[0].lon,altitude:2.3},0);
+  // 初始視角必須等版面尺寸確定後再套用，否則 viewAltitude 換算不到正確比例；
+  // 容器尚未有尺寸時持續重試（rAF 在背景分頁不會執行，故用 setTimeout）
+  const setView=(pov,n)=>{
+    const el=document.getElementById('globeViz');
+    if(el.clientHeight>0){sizeGlobe();world.pointOfView(pov(),0);}
+    else if((n||0)<40)setTimeout(()=>setView(pov,(n||0)+1),80);
+  };
+  if(Array.isArray(s)&&s.length){PTS=s;refresh();
+    setView(()=>({lat:PTS[0].lat,lng:PTS[0].lon,altitude:viewAltitude(2.3)}));
     PTS.forEach(p=>{if(!p.cc)enqueueGeo(p);});}
-  else refresh();})();
+  else {refresh();setView(()=>({altitude:viewAltitude(2.3)}));}})();
 </script>
 </body>
 </html>
