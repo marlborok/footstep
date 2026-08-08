@@ -190,6 +190,14 @@
   <button class="ssBtn" data-style="realistic" aria-label="寫實地球">
     <svg width="17" height="17" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="currentColor"/></svg>
   </button>
+  <button class="ssBtn" data-style="network" aria-label="網絡地球">
+    <svg width="17" height="17" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4">
+      <circle cx="10" cy="10" r="7.6"/>
+      <path d="M2.6 10h14.8M10 2.4c2.6 2.2 2.6 13 0 15.2M10 2.4c-2.6 2.2-2.6 13 0 15.2"/>
+      <circle cx="6.2" cy="6.4" r="1.5" fill="currentColor" stroke="none"/>
+      <circle cx="13.6" cy="12.4" r="1.5" fill="currentColor" stroke="none"/>
+    </svg>
+  </button>
   <button class="ssBtn" data-style="particle" aria-label="顆粒地球">
     <svg width="17" height="17" viewBox="0 0 20 20" aria-hidden="true">
       <circle cx="10" cy="3.2" r="1.7" fill="currentColor"/><circle cx="15.6" cy="6.5" r="1.7" fill="currentColor"/>
@@ -510,6 +518,41 @@ function buildParticleGlobe(){
   return particleBuilding;
 }
 // 國界細線（僅顆粒模式顯示）：透明填色 + 只留描邊
+// 經緯網格：網絡風格用來暗示球體曲率（globe.gl 無內建，用 paths 圖層畫）
+function buildGraticule(){
+  const paths=[];
+  for(let lon=-180;lon<180;lon+=30){
+    const p=[];for(let lat=-80;lat<=80;lat+=4)p.push([lat,lon]);paths.push(p);
+  }
+  for(let lat=-60;lat<=60;lat+=30){
+    const p=[];for(let lon=-180;lon<=180;lon+=4)p.push([lat,lon]);paths.push(p);
+  }
+  return paths;
+}
+world.pathPoints(d=>d).pathPointLat(p=>p[0]).pathPointLng(p=>p[1])
+ .pathColor(()=> 'rgba(190,210,255,0.13)').pathStroke(0.28)
+ .pathTransitionDuration(0).pathsData([]);
+// 網絡風格：把地球材質換成近黑（保留原貼圖以便切回）
+let _origMat=null;
+function darkenGlobe(){
+  const gm=world.globeMaterial();
+  // globe.gl 在套用貼圖時會把 material.color 設為 null，故複製前必須防呆
+  if(!_origMat&&gm.map)_origMat={map:gm.map,emissiveMap:gm.emissiveMap,
+    color:gm.color?gm.color.clone():null,
+    emissive:gm.emissive?gm.emissive.clone():null,
+    ei:gm.emissiveIntensity};
+  gm.map=null;gm.emissiveMap=null;
+  gm.color=new THREE.Color(0x080d16);
+  gm.emissive=new THREE.Color(0x0a1220);gm.emissiveIntensity=1;
+  gm.needsUpdate=true;
+}
+function restoreGlobe(){
+  const gm=world.globeMaterial();
+  if(!_origMat)return;
+  gm.map=_origMat.map;gm.emissiveMap=_origMat.emissiveMap;
+  gm.color=_origMat.color;gm.emissive=_origMat.emissive;
+  gm.emissiveIntensity=_origMat.ei;gm.needsUpdate=true;
+}
 world.polygonCapColor(()=> 'rgba(0,0,0,0)').polygonSideColor(()=> 'rgba(0,0,0,0)')
  .polygonStrokeColor(()=> 'rgba(120,180,255,0.32)').polygonAltitude(0.006);
 let borderGeo=null,borderLoading=null;
@@ -532,17 +575,28 @@ async function applyGlobeStyle(style,_retry){
   if(!mesh&&(_retry||0)<25){setTimeout(()=>applyGlobeStyle(style,(_retry||0)+1),250);}
   if(style==='particle'){
     const pts=await buildParticleGlobe();
-    if(mesh)mesh.visible=false;
+    if(mesh){mesh.visible=false;restoreGlobe();}
     if(pts)pts.visible=true;
     // 必須一併關閉大氣層：它是獨立的內側渲染輝光球，
     // 地球本體一藏、失去遮蔽就會整顆爆成實心橘球蓋住顆粒。
     world.showAtmosphere(false);
+    world.pathsData([]);
+    world.polygonCapColor(()=> 'rgba(0,0,0,0)').polygonStrokeColor(()=> 'rgba(120,180,255,0.32)');
     loadBorders().then(b=>{if(globeStyle==='particle')world.polygonsData(b);});
+  }else if(style==='network'){
+    // 近黑球體 + 陸地剪影 + 經緯網格：讓足跡與旅程弧線成為畫面主體
+    if(mesh){mesh.visible=true;darkenGlobe(mesh);}
+    if(particlePoints)particlePoints.visible=false;
+    world.showAtmosphere(true);
+    world.pathsData(buildGraticule());
+    world.polygonCapColor(()=> 'rgba(28,38,58,0.62)').polygonStrokeColor(()=> 'rgba(255,181,69,0.34)');
+    loadBorders().then(b=>{if(globeStyle==='network')world.polygonsData(b);});
   }else{
-    if(mesh)mesh.visible=true;
+    if(mesh){mesh.visible=true;restoreGlobe();}
     if(particlePoints)particlePoints.visible=false;
     world.showAtmosphere(true);
     world.polygonsData([]);
+    world.pathsData([]);
   }
 }
 document.querySelectorAll('.ssBtn').forEach(b=>b.addEventListener('click',()=>applyGlobeStyle(b.dataset.style)));
