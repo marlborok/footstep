@@ -22,13 +22,18 @@
     --gshadow:0 16px 42px rgba(0,0,0,.5);--ghi:inset 0 1px 0 rgba(255,255,255,.14);
     --stroke:rgba(255,255,255,.12);}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;height:100%;overflow:hidden;background:
-     radial-gradient(70% 50% at 15% 2%, rgba(72,96,170,.30) 0%, transparent 60%),
-     radial-gradient(65% 50% at 88% 8%, rgba(150,90,180,.20) 0%, transparent 58%),
-     radial-gradient(90% 60% at 50% 108%, rgba(224,123,44,.16) 0%, transparent 62%),
-     linear-gradient(170deg,#080b14 0%,#0c101d 45%,#0a0d18 100%);
+  html,body{margin:0;height:100%;overflow:hidden;
     color:var(--ink);font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
     -webkit-user-select:none;user-select:none;}
+  /* 背景與星空改掛在超出視窗邊界的固定層。
+     掛在 html/body 上只會覆蓋「版面視窗」，iOS 工具列收合後可視高度變大，
+     多出來的區域構不到就會露出一條死板色塊。上下各外擴 16vh 即可永遠滿版。 */
+  #bg,#stars{position:fixed;left:0;right:0;top:-16vh;bottom:-16vh;z-index:0;pointer-events:none;}
+  #bg{background:
+     radial-gradient(70% 38% at 15% 20%, rgba(72,96,170,.30) 0%, transparent 60%),
+     radial-gradient(65% 38% at 88% 24%, rgba(150,90,180,.20) 0%, transparent 58%),
+     radial-gradient(90% 45% at 50% 82%, rgba(224,123,44,.16) 0%, transparent 62%),
+     linear-gradient(170deg,#080b14 0%,#0c101d 45%,#0a0d18 100%);}
   /* 必須寫在 background 簡寫之後（簡寫會把 background-color 重設為透明）。
      根元素的背景「顏色」會塗滿整個視窗畫布，但背景「圖片」（漸層）只塗滿 html 自己的盒子；
      iOS Safari 工具列收合後可視高度大於 100%，多出來那塊沒有漸層就露出預設白底。 */
@@ -36,7 +41,7 @@
   /* 版面高度改用動態視窗單位，工具列收合時才不會少一截 */
   @supports (height:100dvh){html,body{height:100dvh;}}
   /* z0 星空層（JS 產生一次貼圖後鋪滿） */
-  #stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.75;}
+  #stars{opacity:.75;}
   /* z0 地球後方光暈：冷色，像大氣在太空中的散射 */
   #halo{position:fixed;left:50%;top:calc(50% - 7vh);transform:translate(-50%,-50%);z-index:0;
     width:min(112vw,620px);aspect-ratio:1;border-radius:50%;pointer-events:none;
@@ -55,8 +60,8 @@
   .title{font-size:20px;display:flex;align-items:center;line-height:1;white-space:nowrap;}
   .title .en{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700;letter-spacing:.03em;
     filter:drop-shadow(0 0 12px rgba(245,166,34,.35));}
-  /* 兩個腳印取代 oo。viewBox 已裁到緊貼圖形，故 margin 就是實際字距 */
-  .oo{height:.95em;width:auto;display:block;margin:0 .07em;transform:translateY(.07em);
+  /* 兩個腳印取代 oo：高度對齊 x-height、腳趾略高於字身當作視覺重音 */
+  .oo{height:.86em;width:auto;display:block;margin:0 .04em;transform:translateY(.08em);
     filter:drop-shadow(0 0 8px rgba(245,166,34,.35));}
   /* 地球風格切換 */
   .styleSwitch{position:fixed;z-index:20;top:calc(env(safe-area-inset-top) + 12px);right:14px;
@@ -155,6 +160,7 @@
 <script src="https://unpkg.com/exifr@7.1.3/dist/full.umd.js"></script>
 </head>
 <body>
+<div id="bg"></div>
 <div id="stars"></div>
 <div id="halo"></div>
 <div id="globeViz"></div>
@@ -163,25 +169,17 @@
   <!-- 字標：footsteps 的兩個 o 換成腳印（o 本來就長得像腳掌） -->
   <div class="title" role="img" aria-label="footsteps">
     <span class="en" aria-hidden="true">f</span>
-    <!-- viewBox 緊貼圖形外框（無多餘留白），字距才不會被撐開 -->
-    <svg class="oo" viewBox="4 3 66 46" aria-hidden="true">
-      <defs>
-        <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset=".55" stop-color="#f5a622"/><stop offset="1" stop-color="#e07b2c"/></linearGradient>
-        <!-- 嬰兒腳印（左腳）。先在直立姿態下把四趾長在腳掌前緣輪廓上：
-             大拇趾在內側、最前最大，向外側依序後退變小；
-             最後整隻腳一起旋轉，趾頭才不會脫離腳掌浮在空中。 -->
-        <g id="ftShape" transform="rotate(12 17 27)">
-          <path d="M18 14C26 14 30 20 29.5 27C29 36 25 48 18 48C11 48 7 36 6.5 27C6 20 10 14 18 14Z"/>
-          <ellipse cx="24.5" cy="8.2" rx="5.4" ry="5.7"/>
-          <ellipse cx="15.8" cy="8.5" rx="4" ry="4.3"/>
-          <ellipse cx="9" cy="13.5" rx="3.3" ry="3.5"/>
-          <ellipse cx="6.5" cy="20.4" rx="2.7" ry="2.9"/>
-        </g>
-      </defs>
-      <!-- 圖形本身是左腳（大拇趾在趾列右上、腳掌向左下傾斜），故右腳才鏡射 -->
+    <svg class="oo" viewBox="0 0 44 28" aria-hidden="true">
+      <defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset=".55" stop-color="#f5a622"/><stop offset="1" stop-color="#e07b2c"/></linearGradient></defs>
       <g fill="url(#fg)">
-        <use href="#ftShape"/>
-        <use href="#ftShape" transform="translate(74,0) scale(-1,1)"/>
+        <g transform="rotate(-7 11 17)">
+          <ellipse cx="11" cy="17.6" rx="6.6" ry="7.3"/>
+          <circle cx="5.7" cy="9.9" r="1.7"/><circle cx="9.4" cy="8.1" r="1.95"/><circle cx="13.2" cy="8.2" r="1.85"/><circle cx="16.5" cy="9.9" r="1.6"/>
+        </g>
+        <g transform="translate(22,0) rotate(7 11 17)">
+          <ellipse cx="11" cy="17.6" rx="6.6" ry="7.3"/>
+          <circle cx="5.7" cy="9.9" r="1.6"/><circle cx="9.0" cy="8.2" r="1.85"/><circle cx="12.8" cy="8.1" r="1.95"/><circle cx="16.5" cy="9.9" r="1.7"/>
+        </g>
       </g>
     </svg>
     <span class="en" aria-hidden="true">tsteps</span>
